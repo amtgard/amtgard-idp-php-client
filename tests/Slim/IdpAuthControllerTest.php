@@ -13,10 +13,6 @@ use Amtgard\IdpClient\Slim\IdpAuthController;
 use Amtgard\IdpClient\Tests\Support\Fixtures;
 use Amtgard\IdpClient\Tests\Support\MockPsr18Client;
 use Amtgard\IdpClient\Tests\Support\TestEnvironment;
-use GuzzleHttp\Client as GuzzleClient;
-use GuzzleHttp\Handler\MockHandler;
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Psr7\Response as GuzzleResponse;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\ServerRequest;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -74,13 +70,12 @@ final class IdpAuthControllerTest extends TestCase
         $flowState->put(new OAuthFlowState($state, Pkce::generateVerifier(), '/after-login'));
 
         $http = new MockPsr18Client();
+        $idpClient = $this->createIdpClient($flowState, $http);
         $http->enqueue(
             $this->psr17->createResponse(200)->withBody(
                 $this->psr17->createStream(Fixtures::read('userinfo_without_ork.json')),
             ),
         );
-
-        $idpClient = $this->createIdpClient($flowState, $http);
         $authStore = new SessionAuthStore();
         $controller = new IdpAuthController(
             $idpClient,
@@ -133,23 +128,18 @@ final class IdpAuthControllerTest extends TestCase
 
     private function createIdpClient(InMemoryOAuthFlowStateStore $flowState, MockPsr18Client $http): IdpClient
     {
-        $env = TestEnvironment::create();
-        $handler = HandlerStack::create(new MockHandler([
-            new GuzzleResponse(200, ['Content-Type' => 'application/json'], Fixtures::read('token_response.json')),
-        ]));
-        $provider = new \Amtgard\IdpClient\IdpProvider(
-            [
-                'clientId' => $env->clientId(),
-                'clientSecret' => $env->clientSecret() ?? '',
-                'redirectUri' => $env->redirectUri(),
-                'urlAuthorize' => $env->idpBaseUrl() . '/oauth/authorize',
-                'urlAccessToken' => $env->idpBaseUrl() . '/oauth/token',
-                'urlResourceOwnerDetails' => $env->idpBaseUrl() . '/resources/userinfo',
-                'scopes' => $env->scopes(),
-            ],
-            ['httpClient' => new GuzzleClient(['handler' => $handler])],
+        $http->enqueue(
+            $this->psr17->createResponse(200)
+                ->withHeader('Content-Type', 'application/json')
+                ->withBody($this->psr17->createStream(Fixtures::read('token_response.json'))),
         );
 
-        return new IdpClient($env, $flowState, $http, $this->psr17, $this->psr17, $provider);
+        return new IdpClient(
+            TestEnvironment::create(),
+            $flowState,
+            $http,
+            $this->psr17,
+            $this->psr17,
+        );
     }
 }

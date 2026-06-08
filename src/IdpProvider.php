@@ -5,11 +5,19 @@ declare(strict_types=1);
 namespace Amtgard\IdpClient;
 
 use League\OAuth2\Client\Provider\GenericProvider;
+use Psr\Http\Client\ClientInterface;
 
 final class IdpProvider extends GenericProvider
 {
-    public static function fromEnvironment(IdpClientEnvironment $environment): self
-    {
+    public static function fromEnvironment(
+        IdpClientEnvironment $environment,
+        ?ClientInterface $httpClient = null,
+    ): self {
+        $collaborators = [];
+        if ($httpClient !== null) {
+            $collaborators['httpClient'] = $httpClient;
+        }
+
         return new self([
             'clientId' => $environment->clientId(),
             'clientSecret' => $environment->clientSecret() ?? '',
@@ -20,6 +28,6 @@ final class IdpProvider extends GenericProvider
             'scopes' => $environment->scopes(),
             // IDP requires space-separated scopes (profile email), not League's default comma.
             'scopeSeparator' => ' ',
-        ]);
+        ], $collaborators);
     }
 }

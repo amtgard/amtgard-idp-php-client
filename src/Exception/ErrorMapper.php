@@ -31,6 +31,38 @@ final class ErrorMapper
         );
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public static function mapTokenErrorPayload(array $payload, bool $isRefresh = false): TokenExchangeException
+    {
+        $idpError = self::stringOrNull($payload['error'] ?? null);
+        $idpDescription = self::stringOrNull($payload['error_description'] ?? null);
+        $hint = self::stringOrNull($payload['hint'] ?? null);
+
+        if ($isRefresh) {
+            return new TokenExchangeException(
+                ErrorCode::TokenRefreshFailed,
+                sprintf(
+                    'Refresh token exchange failed (%s). %s',
+                    $idpError ?? 'unknown_error',
+                    self::developerHint(ErrorCode::TokenRefreshFailed),
+                ),
+                $idpError,
+                $idpDescription,
+            );
+        }
+
+        $errorCode = self::mapOAuthTokenError($idpError, $idpDescription, $hint);
+
+        return new TokenExchangeException(
+            $errorCode,
+            self::buildTokenMessage($errorCode, $idpError, $idpDescription, $hint),
+            $idpError,
+            $idpDescription,
+        );
+    }
+
     public static function mapRefreshFailure(IdentityProviderException $exception): TokenExchangeException
     {
         $payload = self::extractOAuthErrorPayload($exception);

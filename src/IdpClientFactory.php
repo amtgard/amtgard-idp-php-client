@@ -43,6 +43,7 @@ final class IdpClientFactory
         $guzzle = $http ?? new GuzzleClient([
             'headers' => [
                 'User-Agent' => $environment->httpUserAgent(),
+                'Accept' => 'application/json',
             ],
         ]);
 
