@@ -13,7 +13,7 @@ Every new PHP app integrating with the Amtgard IDP repeats the same mistakes:
 
 1. **Generic OAuth configuration** — wrong grant types, missing PKCE/state handling
 2. **Endpoint drift** — authorize/token/userinfo URLs copy-pasted and stale
-3. **User-Agent confusion** — `AmtgardIDP/1.0` is the IDP **server’s** ORK API user-agent, not what OAuth clients send
+3. **User-Agent** — all server-side IDP HTTP from OAuth clients defaults to `AmtgardIDP/1.0` (overridable via `IDP_HTTP_USER_AGENT`)
 
 This library encodes **one** integration path: **OAuth 2.0 authorization code + PKCE (S256) + `profile email` scopes + resource API + policy evaluation**.
 
@@ -217,7 +217,7 @@ Read by `IdpClientEnvironmentFactory::fromEnvVars()` — not by `IdpClient` dire
 | `IDP_CLIENT_ID` | `my-app` |
 | `IDP_CLIENT_SECRET` | `(secret)` — omit for public client |
 | `IDP_REDIRECT_URI` | `https://my.app/oauth/callback` |
-| `IDP_HTTP_USER_AGENT` | `MyApp/1.0 (amtgard-idp-php-client/1.0)` |
+| `IDP_HTTP_USER_AGENT` | `AmtgardIDP/1.0` (default; optional override) |
 
 ---
 
@@ -226,7 +226,8 @@ Read by `IdpClientEnvironmentFactory::fromEnvVars()` — not by `IdpClient` dire
 | Concern | IDP server | This library |
 |---------|------------|--------------|
 | Issues tokens | Yes | Consumes tokens |
-| ORK API User-Agent `AmtgardIDP/1.0` | Server-side | **Not used** |
+| User-Agent `AmtgardIDP/1.0` | IDP server → ORK | Server-side ORK calls |
+| User-Agent `AmtgardIDP/1.0` | OAuth clients → IDP | **Default** on all IDP HTTP |
 | OAuth authorize/token | Yes | League `GenericProvider` wrapper |
 | `/resources/userinfo` | Yes | `UserProfile` |
 | `/resources/validate` | Yes | `ValidatedSession` |

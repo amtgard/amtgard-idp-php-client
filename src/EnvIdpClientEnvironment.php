@@ -15,7 +15,7 @@ final readonly class EnvIdpClientEnvironment implements IdpClientEnvironment
         private ?string $clientSecret,
         private string $redirectUri,
         private array $scopes = ['profile', 'email'],
-        private string $httpUserAgent = 'amtgard-idp-php-client/1.0',
+        private string $httpUserAgent = IdpClientEnvironment::DEFAULT_HTTP_USER_AGENT,
     ) {}
 
     public function idpBaseUrl(): string

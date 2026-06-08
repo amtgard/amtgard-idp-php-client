@@ -31,6 +31,17 @@ final class IdpClientEnvironmentFactoryTest extends TestCase
         $this->assertSame('TestApp/1.0', $env->httpUserAgent());
     }
 
+    public function testFromEnvVarsDefaultsHttpUserAgent(): void
+    {
+        $env = IdpClientEnvironmentFactory::fromEnvVars([
+            'IDP_BASE_URL' => 'https://idp.test',
+            'IDP_CLIENT_ID' => 'app',
+            'IDP_REDIRECT_URI' => 'https://app.test/callback',
+        ]);
+
+        $this->assertSame('AmtgardIDP/1.0', $env->httpUserAgent());
+    }
+
     public function testFromEnvVarsAllowsMissingSecretForPublicClient(): void
     {
         $env = IdpClientEnvironmentFactory::fromEnvVars([

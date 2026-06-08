@@ -39,7 +39,7 @@ final class IdpTokenClientTest extends TestCase
         $request = $http->requests[0];
         $this->assertSame('POST', $request->getMethod());
         $this->assertStringEndsWith('/oauth/token', (string) $request->getUri());
-        $this->assertSame('test-agent/1.0', $request->getHeaderLine('User-Agent'));
+        $this->assertSame('AmtgardIDP/1.0', $request->getHeaderLine('User-Agent'));
         $this->assertSame('application/json', $request->getHeaderLine('Accept'));
         $this->assertSame('application/x-www-form-urlencoded', $request->getHeaderLine('Content-Type'));
 

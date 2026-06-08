@@ -24,7 +24,7 @@ final class ArrayEnvironmentTest extends TestCase
         $this->assertSame('client', $env->clientId());
         $this->assertSame('https://app.test/callback', $env->redirectUri());
         $this->assertSame(['profile', 'email'], $env->scopes());
-        $this->assertSame('amtgard-idp-php-client/1.0', $env->httpUserAgent());
+        $this->assertSame('AmtgardIDP/1.0', $env->httpUserAgent());
         $this->assertNull($env->clientSecret());
     }
 
