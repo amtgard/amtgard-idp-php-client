@@ -18,6 +18,8 @@ final class IdpProvider extends GenericProvider
             'urlAccessToken' => $environment->idpBaseUrl() . '/oauth/token',
             'urlResourceOwnerDetails' => $environment->idpBaseUrl() . '/resources/userinfo',
             'scopes' => $environment->scopes(),
+            // IDP requires space-separated scopes (profile email), not League's default comma.
+            'scopeSeparator' => ' ',
         ]);
     }
 }

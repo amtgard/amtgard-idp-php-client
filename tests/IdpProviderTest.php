@@ -21,6 +21,7 @@ final class IdpProviderTest extends TestCase
 
         $this->assertStringContainsString('client_id=test-client', $url);
         $this->assertStringContainsString('redirect_uri=', $url);
-        $this->assertStringContainsString('scope=profile', $url);
+        $this->assertStringContainsString('scope=profile%20email', $url);
+        $this->assertStringNotContainsString('scope=profile,email', $url);
     }
 }
