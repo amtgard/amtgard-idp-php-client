@@ -8,7 +8,6 @@ use Amtgard\IdpClient\Exception\ErrorCode;
 use Amtgard\IdpClient\Exception\InvalidOAuthStateException;
 use Amtgard\IdpClient\Exception\TokenExchangeException;
 use Amtgard\IdpClient\IdpClient;
-use Amtgard\IdpClient\IdpProvider;
 use Amtgard\IdpClient\InMemoryOAuthFlowStateStore;
 use Amtgard\IdpClient\OAuthFlowState;
 use Amtgard\IdpClient\Pkce;
@@ -16,9 +15,6 @@ use Amtgard\IdpClient\TokenSet;
 use Amtgard\IdpClient\Tests\Support\Fixtures;
 use Amtgard\IdpClient\Tests\Support\MockPsr18Client;
 use Amtgard\IdpClient\Tests\Support\TestEnvironment;
-use GuzzleHttp\Client as GuzzleClient;
-use GuzzleHttp\Handler\MockHandler;
-use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response as GuzzleResponse;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\ServerRequest;
@@ -108,17 +104,11 @@ final class IdpClientTest extends TestCase
         $state = Pkce::generateState();
         $this->flowState->put(new OAuthFlowState($state, Pkce::generateVerifier()));
 
-        $http = new MockPsr18Client();
-        $http->enqueue(
-            $this->psr17->createResponse(200)->withBody(
-                $this->psr17->createStream(Fixtures::read('userinfo_without_ork.json')),
-            ),
-        );
-
         $tokenJson = Fixtures::read('token_response.json');
         $client = $this->createClient([
             new GuzzleResponse(200, ['Content-Type' => 'application/json'], $tokenJson),
-        ], $http);
+            new GuzzleResponse(200, ['Content-Type' => 'application/json'], Fixtures::read('userinfo_without_ork.json')),
+        ]);
 
         $request = (new ServerRequest('GET', '/oauth/callback'))
             ->withQueryParams(['code' => 'auth-code-123', 'state' => $state]);
@@ -250,6 +240,50 @@ final class IdpClientTest extends TestCase
         }
     }
 
+    public function testCompleteAuthorizationMapsWafHtmlResponse(): void
+    {
+        $state = Pkce::generateState();
+        $this->flowState->put(new OAuthFlowState($state, Pkce::generateVerifier()));
+
+        $html = '<!DOCTYPE html><html><title>Just a moment...</title>cf-ray-abc123</html>';
+        $client = $this->createClient([
+            new GuzzleResponse(403, ['Content-Type' => 'text/html; charset=UTF-8'], $html),
+        ]);
+
+        $request = (new ServerRequest('GET', '/oauth/callback'))
+            ->withQueryParams(['code' => 'code', 'state' => $state]);
+
+        try {
+            $client->completeAuthorization($request);
+            $this->fail('Expected TokenExchangeException');
+        } catch (TokenExchangeException $exception) {
+            $this->assertSame(ErrorCode::WafOrHtmlResponse, $exception->errorCode());
+            $this->assertStringContainsString('README', $exception->getMessage());
+            $this->assertStringContainsString('HTTP 403', $exception->getMessage());
+        }
+    }
+
+    public function testCompleteLoginMapsWafHtmlResponse(): void
+    {
+        $state = Pkce::generateState();
+        $this->flowState->put(new OAuthFlowState($state, Pkce::generateVerifier()));
+
+        $html = '<html>Cloudflare Attention Required cf-ray-xyz</html>';
+        $client = $this->createClient([
+            new GuzzleResponse(403, ['Content-Type' => 'text/html'], $html),
+        ]);
+
+        $request = (new ServerRequest('GET', '/oauth/callback'))
+            ->withQueryParams(['code' => 'code', 'state' => $state]);
+
+        try {
+            $client->completeLogin($request);
+            $this->fail('Expected TokenExchangeException');
+        } catch (TokenExchangeException $exception) {
+            $this->assertSame(ErrorCode::WafOrHtmlResponse, $exception->errorCode());
+        }
+    }
+
     public function testRefreshReturnsNewTokenSet(): void
     {
         $tokenJson = Fixtures::read('token_response.json');
@@ -315,36 +349,32 @@ final class IdpClientTest extends TestCase
     }
 
     /**
-     * @param list<GuzzleResponse> $guzzleResponses
+     * @param list<GuzzleResponse> $responses
      */
-    private function createClient(array $guzzleResponses = [], ?MockPsr18Client $http = null): IdpClient
+    private function createClient(array $responses = [], ?MockPsr18Client $http = null): IdpClient
     {
         $env = TestEnvironment::create();
         $http ??= new MockPsr18Client();
 
-        $handler = HandlerStack::create(new MockHandler($guzzleResponses));
-        $guzzle = new GuzzleClient(['handler' => $handler]);
+        foreach ($responses as $response) {
+            $http->enqueue($this->toPsrResponse($response));
+        }
 
-        $provider = new IdpProvider(
-            [
-                'clientId' => $env->clientId(),
-                'clientSecret' => $env->clientSecret() ?? '',
-                'redirectUri' => $env->redirectUri(),
-                'urlAuthorize' => $env->idpBaseUrl() . '/oauth/authorize',
-                'urlAccessToken' => $env->idpBaseUrl() . '/oauth/token',
-                'urlResourceOwnerDetails' => $env->idpBaseUrl() . '/resources/userinfo',
-                'scopes' => $env->scopes(),
-            ],
-            ['httpClient' => $guzzle],
-        );
+        return new IdpClient($env, $this->flowState, $http, $this->psr17, $this->psr17);
+    }
 
-        return new IdpClient(
-            $env,
-            $this->flowState,
-            $http,
-            $this->psr17,
-            $this->psr17,
-            $provider,
+    private function toPsrResponse(GuzzleResponse $response): \Psr\Http\Message\ResponseInterface
+    {
+        $psrResponse = $this->psr17->createResponse($response->getStatusCode());
+
+        foreach ($response->getHeaders() as $name => $values) {
+            foreach ($values as $value) {
+                $psrResponse = $psrResponse->withHeader($name, $value);
+            }
+        }
+
+        return $psrResponse->withBody(
+            $this->psr17->createStream((string) $response->getBody()),
         );
     }
 }

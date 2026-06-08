@@ -20,7 +20,7 @@ interface IdpClientEnvironment
     public function scopes(): array;
 
     /**
-     * Outbound User-Agent for IDP resource calls (not ORK API).
+     * Outbound User-Agent for all server-side IDP HTTP (token exchange + resources; not ORK API).
      * Default: amtgard-idp-php-client/1.0
      */
     public function httpUserAgent(): string;

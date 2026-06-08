@@ -505,7 +505,7 @@ Each code maps to a common client implementation mistake. Fix the root cause, th
 
 #### `IDP_CLIENT_WAF_OR_HTML_RESPONSE` {#error-idp_client_waf_or_html_response}
 
-**When:** Expected JSON but received HTML (often Cloudflare WAF / bot protection).
+**When:** `POST /oauth/token` or a resource endpoint returned HTML instead of JSON (often Cloudflare WAF / bot protection). Surfaces as `TokenExchangeException` on callback/refresh and `ResourceException` on resource calls.
 
 **Common causes:**
 - Server-side token exchange blocked or challenged by Cloudflare
@@ -514,10 +514,10 @@ Each code maps to a common client implementation mistake. Fix the root cause, th
 
 **Fix:**
 1. Token exchange **must** happen server-side (never in the browser)
-2. Set a descriptive `httpUserAgent()` — e.g. `MyApp/1.0 (amtgard-idp-php-client/1.0)`
+2. Set a descriptive `IDP_HTTP_USER_AGENT` / `httpUserAgent()` — e.g. `MyApp/1.0 (amtgard-idp-php-client/1.0)`. The on-rails factory applies this to **both** `/oauth/token` and `/resources/*`.
 3. Ensure your hosting egress IP is not blocked; contact IDP ops if Cloudflare rules block your server
 4. Do not call `/oauth/token` from JavaScript — WAF rules often block that pattern
-5. For resource calls, always send `Accept: application/json` (this library does)
+5. All server-side IDP calls send `Accept: application/json` (token exchange and resources)
 
 ---
 

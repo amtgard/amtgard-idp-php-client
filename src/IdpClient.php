@@ -5,12 +5,10 @@ declare(strict_types=1);
 namespace Amtgard\IdpClient;
 
 use Amtgard\IdpClient\Exception\ErrorCode;
-use Amtgard\IdpClient\Exception\ErrorMapper;
 use Amtgard\IdpClient\Exception\InvalidOAuthStateException;
 use Amtgard\IdpClient\Exception\TokenExchangeException;
+use Amtgard\IdpClient\Http\IdpTokenClient;
 use Amtgard\IdpClient\Http\Psr18IdpHttpClient;
-use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
-use League\OAuth2\Client\Token\AccessTokenInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
@@ -21,6 +19,7 @@ use Psr\Http\Message\StreamFactoryInterface;
 final class IdpClient
 {
     private readonly IdpProvider $provider;
+    private readonly IdpTokenClient $tokenClient;
     private readonly Psr18IdpHttpClient $resourceClient;
 
     public function __construct(
@@ -31,10 +30,11 @@ final class IdpClient
         private readonly ResponseFactoryInterface $responses,
         ?IdpProvider $provider = null,
     ) {
-        $this->provider = $provider ?? IdpProvider::fromEnvironment($environment);
+        $this->provider = $provider ?? self::createDefaultProvider($environment, $http);
         $streams = $requests instanceof StreamFactoryInterface
             ? $requests
             : new \Nyholm\Psr7\Factory\Psr17Factory();
+        $this->tokenClient = new IdpTokenClient($environment, $http, $requests, $streams);
         $this->resourceClient = new Psr18IdpHttpClient($environment, $http, $requests, $streams);
     }
 
@@ -123,19 +123,9 @@ final class IdpClient
             );
         }
 
-        try {
-            $accessToken = $this->provider->getAccessToken('authorization_code', [
-                'code' => $code,
-                'code_verifier' => $stored->codeVerifier,
-            ]);
-        } catch (IdentityProviderException $exception) {
-            throw ErrorMapper::mapTokenExchangeFailure($exception);
-        }
+        $tokens = $this->tokenClient->exchangeAuthorizationCode($code, $stored->codeVerifier);
 
-        return new AuthorizationResult(
-            $this->mapAccessToken($accessToken),
-            $stored->returnTo,
-        );
+        return new AuthorizationResult($tokens, $stored->returnTo);
     }
 
     public function completeLogin(ServerRequestInterface $callbackRequest): AuthenticatedSession
@@ -185,29 +175,18 @@ final class IdpClient
             );
         }
 
-        try {
-            $accessToken = $this->provider->getAccessToken('refresh_token', [
-                'refresh_token' => $refreshToken,
-            ]);
-        } catch (IdentityProviderException $exception) {
-            throw ErrorMapper::mapRefreshFailure($exception);
-        }
-
-        return $this->mapAccessToken($accessToken);
+        return $this->tokenClient->refresh($refreshToken);
     }
 
-    private function mapAccessToken(AccessTokenInterface $accessToken): TokenSet
-    {
-        $expiresAt = null;
-        $expires = $accessToken->getExpires();
-        if ($expires !== null) {
-            $expiresAt = (new \DateTimeImmutable())->setTimestamp($expires);
+    private static function createDefaultProvider(
+        IdpClientEnvironment $environment,
+        ClientInterface $http,
+    ): IdpProvider {
+        // League's provider only accepts Guzzle; token exchange uses the PSR-18 client directly.
+        if ($http instanceof \GuzzleHttp\ClientInterface) {
+            return IdpProvider::fromEnvironment($environment, $http);
         }
 
-        return new TokenSet(
-            (string) $accessToken->getToken(),
-            $accessToken->getRefreshToken(),
-            $expiresAt,
-        );
+        return IdpProvider::fromEnvironment($environment);
     }
 }
