@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Amtgard\IdpClient\Tests;
 
 use Amtgard\IdpClient\IdpClient;
+use Amtgard\IdpClient\IdpClientEnvironment;
+use Amtgard\IdpClient\IdpClientEnvironmentFactory;
 use Amtgard\IdpClient\IdpClientFactory;
 use Amtgard\IdpClient\InMemoryOAuthFlowStateStore;
 use Amtgard\IdpClient\OAuthFlowState;
@@ -45,6 +47,43 @@ final class IdpClientFactoryTest extends TestCase
         );
 
         $this->assertInstanceOf(IdpClient::class, $client);
+    }
+
+    public function testFromEnvironmentDefaultsUserAgentToAmtgardIdpOnTokenExchange(): void
+    {
+        $container = [];
+        $history = Middleware::history($container);
+        $handler = HandlerStack::create(new MockHandler([
+            new GuzzleResponse(200, ['Content-Type' => 'application/json'], Fixtures::read('token_response.json')),
+        ]));
+        $handler->push($history);
+
+        $env = IdpClientEnvironmentFactory::fromEnvVars([
+            'IDP_BASE_URL' => 'https://idp.test',
+            'IDP_CLIENT_ID' => 'app',
+            'IDP_REDIRECT_URI' => 'https://app.test/callback',
+        ]);
+        $guzzle = new GuzzleClient([
+            'handler' => $handler,
+            'headers' => [
+                'User-Agent' => $env->httpUserAgent(),
+                'Accept' => 'application/json',
+            ],
+        ]);
+
+        $flowState = new InMemoryOAuthFlowStateStore();
+        $state = Pkce::generateState();
+        $flowState->put(new OAuthFlowState($state, Pkce::generateVerifier()));
+
+        $client = IdpClientFactory::fromEnvironment($env, $flowState, $guzzle);
+
+        $this->assertSame(IdpClientEnvironment::DEFAULT_HTTP_USER_AGENT, $env->httpUserAgent());
+        $request = (new ServerRequest('GET', '/oauth/callback'))
+            ->withQueryParams(['code' => 'auth-code', 'state' => $state]);
+
+        $client->completeAuthorization($request);
+
+        $this->assertSame('AmtgardIDP/1.0', $container[0]['request']->getHeaderLine('User-Agent'));
     }
 
     public function testFromEnvironmentSendsUserAgentAndAcceptOnTokenExchange(): void

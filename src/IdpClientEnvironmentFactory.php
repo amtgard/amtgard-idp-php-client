@@ -42,7 +42,7 @@ final class IdpClientEnvironmentFactory
             clientSecret: $secret,
             redirectUri: self::requiredString($env, 'IDP_REDIRECT_URI'),
             httpUserAgent: self::optionalString($env, 'IDP_HTTP_USER_AGENT')
-                ?? 'amtgard-idp-php-client/1.0',
+                ?? IdpClientEnvironment::DEFAULT_HTTP_USER_AGENT,
         );
     }
 

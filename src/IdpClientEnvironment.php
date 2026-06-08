@@ -6,6 +6,8 @@ namespace Amtgard\IdpClient;
 
 interface IdpClientEnvironment
 {
+    public const DEFAULT_HTTP_USER_AGENT = 'AmtgardIDP/1.0';
+
     /** e.g. https://idp.amtgard.com (no trailing slash) */
     public function idpBaseUrl(): string;
 
@@ -20,8 +22,8 @@ interface IdpClientEnvironment
     public function scopes(): array;
 
     /**
-     * Outbound User-Agent for all server-side IDP HTTP (token exchange + resources; not ORK API).
-     * Default: amtgard-idp-php-client/1.0
+     * Outbound User-Agent for all server-side IDP HTTP (token exchange + resources).
+     * Default: {@see self::DEFAULT_HTTP_USER_AGENT} (`AmtgardIDP/1.0`).
      */
     public function httpUserAgent(): string;
 }

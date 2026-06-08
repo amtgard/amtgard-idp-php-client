@@ -12,7 +12,7 @@ services:
       IDP_CLIENT_ID: ${IDP_CLIENT_ID:-your-registered-client-id}
       IDP_CLIENT_SECRET: ${IDP_CLIENT_SECRET:-}
       IDP_REDIRECT_URI: ${IDP_REDIRECT_URI:-http://localhost:38080/oauth/callback}
-      IDP_HTTP_USER_AGENT: ${IDP_HTTP_USER_AGENT:-"amtgard-idp-slim-example/1.0 (amtgard-idp-php-client/1.0)"}
+      IDP_HTTP_USER_AGENT: ${IDP_HTTP_USER_AGENT:-AmtgardIDP/1.0}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     container_name: amtgard-idp-slim-example

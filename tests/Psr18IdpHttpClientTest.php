@@ -36,7 +36,7 @@ final class Psr18IdpHttpClientTest extends TestCase
 
         $request = $http->requests[0];
         $this->assertSame('Bearer token-abc', $request->getHeaderLine('Authorization'));
-        $this->assertSame('test-agent/1.0', $request->getHeaderLine('User-Agent'));
+        $this->assertSame('AmtgardIDP/1.0', $request->getHeaderLine('User-Agent'));
         $this->assertStringEndsWith('/resources/userinfo', (string) $request->getUri());
         $this->assertSame(42, $profile->id);
     }
