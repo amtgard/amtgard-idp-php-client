@@ -1,0 +1,20 @@
+{
+  "id": 123,
+  "email": "player@amtgard.com",
+  "jwt": "eyJ.test.jwt",
+  "ork_profile": {
+    "mundane_id": 456,
+    "username": "Amtgardian",
+    "persona": "Dread Knight Megiddo",
+    "suspended": false,
+    "suspended_at": null,
+    "suspended_until": null,
+    "park_id": 12,
+    "park_name": "Tor de Gracia",
+    "kingdom_id": 3,
+    "kingdom_name": "Emerald Hills",
+    "image": "https://example.com/image.jpg",
+    "heraldry": "https://example.com/heraldry.jpg",
+    "dues_through": "2027-12-31"
+  }
+}

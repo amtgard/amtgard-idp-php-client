@@ -1,0 +1,51 @@
+<?php
+
+declare(strict_types=1);
+
+use Amtgard\IdpClient\IdpClient;
+use Amtgard\IdpClient\IdpClientFactory;
+use Amtgard\IdpClient\SessionAuthStore;
+use Amtgard\IdpClient\Slim\IdpAuthController;
+use Amtgard\IdpSlimExample\Controllers\HealthController;
+use Amtgard\IdpSlimExample\Controllers\HomeController;
+use Amtgard\IdpSlimExample\Controllers\MeController;
+use Amtgard\IdpSlimExample\Controllers\ResourcesController;
+use Psr\Container\ContainerInterface;
+use Slim\App;
+
+return [
+    App::class => function (ContainerInterface $container) {
+        $app = \DI\Bridge\Slim\Bridge::create($container);
+        (require dirname(__DIR__) . '/config/routes.php')($app);
+
+        return $app;
+    },
+
+    IdpClient::class => fn () => IdpClientFactory::fromEnvVars(),
+
+    SessionAuthStore::class => fn () => new SessionAuthStore(),
+
+    IdpAuthController::class => function (ContainerInterface $container) {
+        $app = $container->get(App::class);
+
+        return new IdpAuthController(
+            $container->get(IdpClient::class),
+            $container->get(SessionAuthStore::class),
+            postLoginRoute: 'home',
+            postLogoutRoute: 'home',
+            routeParser: $app->getRouteCollector()->getRouteParser(),
+        );
+    },
+
+    HealthController::class => fn () => new HealthController(),
+    HomeController::class => fn (ContainerInterface $container) => new HomeController(
+        $container->get(SessionAuthStore::class),
+    ),
+    MeController::class => fn (ContainerInterface $container) => new MeController(
+        $container->get(SessionAuthStore::class),
+    ),
+    ResourcesController::class => fn (ContainerInterface $container) => new ResourcesController(
+        $container->get(IdpClient::class),
+        $container->get(SessionAuthStore::class),
+    ),
+];

@@ -1,0 +1,24 @@
+services:
+  slim-example:
+    build:
+      context: ../..
+      dockerfile: examples/slim-docker/Dockerfile
+    ports:
+      - "38080:8080"
+    env_file:
+      - .env
+    environment:
+      IDP_BASE_URL: ${IDP_BASE_URL:-https://idp.amtgard.com}
+      IDP_CLIENT_ID: ${IDP_CLIENT_ID:-your-registered-client-id}
+      IDP_CLIENT_SECRET: ${IDP_CLIENT_SECRET:-}
+      IDP_REDIRECT_URI: ${IDP_REDIRECT_URI:-http://localhost:38080/oauth/callback}
+      IDP_HTTP_USER_AGENT: ${IDP_HTTP_USER_AGENT:-"amtgard-idp-slim-example/1.0 (amtgard-idp-php-client/1.0)"}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    container_name: amtgard-idp-slim-example
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit((int)!@file_get_contents('http://127.0.0.1:8080/health'));"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s

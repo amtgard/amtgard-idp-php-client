@@ -1,0 +1,9 @@
+/vendor/
+/build/
+/examples/slim-docker/vendor/
+/examples/slim-docker/.env
+/.phpunit.cache/
+/.phpunit.result.cache/
+/composer.lock
+/.idea/
+.DS_Store
