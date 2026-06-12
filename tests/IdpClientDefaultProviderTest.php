@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Tests;
 
-use Amtgard\IdpClient\IdpClient;
-use Amtgard\IdpClient\InMemoryOAuthFlowStateStore;
+use Amtgard\IdpClient\Client\IdpClient;
+use Amtgard\IdpClient\OAuth\InMemoryOAuthFlowStateStore;
 use Amtgard\IdpClient\Tests\Support\TestEnvironment;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\TestCase;

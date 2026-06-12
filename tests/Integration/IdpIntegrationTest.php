@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Tests\Integration;
 
-use Amtgard\IdpClient\ArrayEnvironment;
+use Amtgard\IdpClient\Config\ArrayEnvironment;
 use Amtgard\IdpClient\Exception\ErrorCode;
 use Amtgard\IdpClient\Exception\ResourceException;
 use Amtgard\IdpClient\Exception\TokenExchangeException;
-use Amtgard\IdpClient\IdpClient;
-use Amtgard\IdpClient\IdpClientFactory;
-use Amtgard\IdpClient\InMemoryOAuthFlowStateStore;
-use Amtgard\IdpClient\OAuthFlowState;
-use Amtgard\IdpClient\Pkce;
+use Amtgard\IdpClient\Client\IdpClient;
+use Amtgard\IdpClient\Config\IdpClientFactory;
+use Amtgard\IdpClient\OAuth\InMemoryOAuthFlowStateStore;
+use Amtgard\IdpClient\OAuth\OAuthFlowState;
+use Amtgard\IdpClient\OAuth\Pkce;
 use GuzzleHttp\Client as GuzzleClient;
 use Nyholm\Psr7\ServerRequest;
 use PHPUnit\Framework\TestCase;
@@ -160,22 +160,25 @@ final class IdpIntegrationTest extends TestCase
 
     public function testCheckAuthorizationWithEmptyPolicy(): void
     {
-        $check = $this->createClient()->checkAuthorization([], 'Idp:0:0:0:0:IDP/EditClient');
+        $client = $this->createClient();
+        $check = $client->checkAuthorization(
+            $client->policyFromOrns([]),
+            $client->requirementFromOrn('Idp:0:0:0:0:IDP/EditClient'),
+        );
 
         $this->assertFalse($check->isAuthorized);
     }
 
-    public function testCheckAuthorizationWithMalformedPolicy(): void
+    public function testCheckAuthorizationWithMalformedPolicyOrn(): void
     {
-        $http = new GuzzleClient(['http_errors' => false, 'timeout' => 10]);
-        $response = $http->post($this->environment->idpBaseUrl() . '/api/is_authorized', [
-            'form_params' => [
-                'policy' => 'not-valid-json',
-                'requirement' => 'Idp:0:0:0:0:IDP/EditClient',
-            ],
-        ]);
+        $client = $this->createClient();
 
-        $this->assertGreaterThanOrEqual(400, $response->getStatusCode());
+        try {
+            $client->policyFromOrns(['not-an-orn']);
+            $this->fail('Expected ResourceException for malformed policy ORN');
+        } catch (ResourceException $exception) {
+            $this->assertSame(ErrorCode::IamInvalidOrn, $exception->errorCode());
+        }
     }
 
     public function testCheckAuthorizationWithConfiguredPolicyWhenAuthorized(): void
@@ -199,7 +202,11 @@ final class IdpIntegrationTest extends TestCase
             $this->fail('IDP_INTEGRATION_POLICY must decode to a JSON array.');
         }
 
-        $check = $this->createClient()->checkAuthorization($policy, $requirement);
+        $client = $this->createClient();
+        $check = $client->checkAuthorization(
+            $client->policyFromOrns($policy),
+            $client->requirementFromOrn($requirement),
+        );
 
         $this->assertTrue($check->isAuthorized);
     }

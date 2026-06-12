@@ -19,6 +19,7 @@ enum ErrorCode: string
     case TokenRefreshFailed = 'IDP_CLIENT_TOKEN_REFRESH_FAILED';
     case ResourceUnauthorized = 'IDP_CLIENT_RESOURCE_UNAUTHORIZED';
     case ResourcePolicyError = 'IDP_CLIENT_RESOURCE_POLICY_ERROR';
+    case IamInvalidOrn = 'IDP_CLIENT_IAM_INVALID_ORN';
     case ResourceUnexpectedStatus = 'IDP_CLIENT_RESOURCE_UNEXPECTED_STATUS';
     case MalformedJson = 'IDP_CLIENT_MALFORMED_JSON';
     case WafOrHtmlResponse = 'IDP_CLIENT_WAF_OR_HTML_RESPONSE';

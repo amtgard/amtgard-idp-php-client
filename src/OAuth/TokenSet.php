@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Amtgard\IdpClient;
+namespace Amtgard\IdpClient\OAuth;
 
 final readonly class TokenSet
 {

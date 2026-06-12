@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Tests;
 
-use Amtgard\IdpClient\EnvIdpClientEnvironment;
+use Amtgard\IdpClient\Config\EnvIdpClientEnvironment;
 use Amtgard\IdpClient\Exception\IdpConfigurationException;
-use Amtgard\IdpClient\IdpClientEnvironmentFactory;
+use Amtgard\IdpClient\Config\IdpClientEnvironmentFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 

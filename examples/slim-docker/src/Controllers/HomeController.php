@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpSlimExample\Controllers;
 
-use Amtgard\IdpClient\SessionAuthStore;
+use Amtgard\IdpClient\Session\SessionAuthStore;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 

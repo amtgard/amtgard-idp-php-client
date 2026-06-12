@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Amtgard\IdpClient;
+namespace Amtgard\IdpClient\OAuth;
 
+use Amtgard\IdpClient\Config\IdpClientEnvironment;
 use League\OAuth2\Client\Provider\GenericProvider;
 use Psr\Http\Client\ClientInterface;
 

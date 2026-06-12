@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpSlimExample\Controllers;
 
-use Amtgard\IdpClient\AuthenticatedSession;
+use Amtgard\IdpClient\Client\IdpClient;
 use Amtgard\IdpClient\Exception\IdpClientException;
-use Amtgard\IdpClient\IdpClient;
-use Amtgard\IdpClient\SessionAuthStore;
+use Amtgard\IdpClient\Resource\AuthenticatedSession;
+use Amtgard\IdpClient\Session\SessionAuthStore;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -131,7 +131,10 @@ final class ResourcesController
 
         return $this->execute(
             $response,
-            fn () => $this->idpClient->checkAuthorization($policy, $requirement),
+            fn () => $this->idpClient->checkAuthorization(
+                $this->idpClient->policyFromOrns($policy),
+                $this->idpClient->requirementFromOrn($requirement),
+            ),
             static fn ($check) => ['is_authorized' => $check->isAuthorized],
         );
     }

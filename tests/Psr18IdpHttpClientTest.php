@@ -6,7 +6,7 @@ namespace Amtgard\IdpClient\Tests;
 
 use Amtgard\IdpClient\Exception\ErrorCode;
 use Amtgard\IdpClient\Exception\ResourceException;
-use Amtgard\IdpClient\Http\Psr18IdpHttpClient;
+use Amtgard\IdpClient\Resource\Http\Psr18IdpHttpClient;
 use Amtgard\IdpClient\Tests\Support\Fixtures;
 use Amtgard\IdpClient\Tests\Support\MockPsr18Client;
 use Amtgard\IdpClient\Tests\Support\ThrowingHttpClient;
@@ -73,29 +73,6 @@ final class Psr18IdpHttpClientTest extends TestCase
         $this->assertSame('Bearer token-abc', $request->getHeaderLine('Authorization'));
         $this->assertStringEndsWith('/resources/jwt', (string) $request->getUri());
         $this->assertSame('eyJhbGciOiJIUzI1NiJ9.fresh-jwt', $jwt);
-    }
-
-    public function testCheckAuthorizationPostsPolicyAndRequirement(): void
-    {
-        $http = new MockPsr18Client();
-        $http->enqueue(
-            $this->psr17->createResponse(200)->withBody(
-                $this->psr17->createStream(Fixtures::read('is_authorized_true.json')),
-            ),
-        );
-
-        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17, $this->psr17);
-        $check = $client->checkAuthorization([], 'Idp:0:0:0:0:IDP/EditClient');
-
-        $request = $http->requests[0];
-        $this->assertSame('POST', $request->getMethod());
-        $this->assertStringEndsWith('/api/is_authorized', (string) $request->getUri());
-        $this->assertSame('application/x-www-form-urlencoded', $request->getHeaderLine('Content-Type'));
-        $this->assertStringNotContainsString('Authorization', $request->getHeaderLine('Authorization'));
-        parse_str((string) $request->getBody(), $body);
-        $this->assertSame('[]', $body['policy']);
-        $this->assertSame('Idp:0:0:0:0:IDP/EditClient', $body['requirement']);
-        $this->assertTrue($check->isAuthorized);
     }
 
     public function testUnauthorizedMapsToResourceException(): void

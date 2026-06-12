@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Amtgard\IdpClient;
+namespace Amtgard\IdpClient\Config;
 
+use Amtgard\IdpClient\Client\IdpClient;
+use Amtgard\IdpClient\OAuth\OAuthFlowStateStore;
+use Amtgard\IdpClient\OAuth\SessionOAuthFlowStateStore;
 use GuzzleHttp\Client as GuzzleClient;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;

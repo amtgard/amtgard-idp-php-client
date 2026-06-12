@@ -1,6 +1,6 @@
 # amtgard-idp-php-client — Implementation Plan
 
-**Status:** Implemented (v1 complete, uncommitted)  
+**Status:** v1 user/resource API complete (`v0.12.0`); ork-iam integration + source reorg planned  
 **Sibling server:** [amtgard-idp](https://github.com/amtgard/amtgard-bastion-idp) (`../amtgard-idp`)  
 **Production IDP:** `https://idp.amtgard.com` — all integration tests and examples default here  
 **Docs reference:** IDP Docsify `/docs` Section 2 (OAuth + resources), Section 4 (League example)
@@ -207,6 +207,141 @@ Composer scripts: `integration:slim`, `integration:slim:up`, `integration:slim:d
 
 ---
 
+## ork-iam integration
+
+Dependencies: `amtgard/ork-iam` 1.3.0, `amtgard/ork-iam-orn-definitions` ^0.9.0. Requires PHP ^8.3.
+
+**Rule:** No `Amtgard\IAM\*` types in the public API. All ork-iam usage lives under `src/Iam/` (internal). When `ork-iam` 2.0 ships, update internals per `ork-iam/docs/MIGRATION-2.0.md` — public method signatures stay stable.
+
+### Implemented
+
+| Feature | ork-iam primitives | Location |
+|---------|-------------------|----------|
+| `checkAuthorization(Policy, Requirement)` | `Policy::isAuthorized` | `src/Iam/AuthorizationEvaluator.php` |
+| `policyFromOrns()` / `requirementFromOrn()` | `PolicyFactory`, `RequirementFactory` | `src/Iam/OrnParser.php` |
+| IDP namespace ORNs | `OrnClassMap::registerClaim/Requirement` for `Idp` prefix | `src/Iam/OrnBootstrap.php`, `src/Iam/Orn/Idp*.php` |
+| ORK / Attendance ORNs | Auto-registered by `ork-iam-orn-definitions` | Composer autoload `register.php` |
+
+`checkAuthorization()` no longer POSTs to `/api/is_authorized`. Evaluation is local — identical logic to IDP `ApiController::isAuthorized`.
+
+### Where ork-iam should be used next
+
+| Future feature | ork-iam role |
+|----------------|--------------|
+| Client IAM API (Section 8) | `ClaimFactory::createOrn` to validate policy claims before HTTP; `OrnSegmentLabel` for service-format slots |
+| Custom `iam_service` integrators | Dynamic `OrnClassMap` registration + format registry (mirror IDP `ClientApplicationClaim`) |
+| JWT policy helpers (optional) | `PolicyFactory::fromOrn` on decoded JWT `policy` claim |
+
+### Not a fit for ork-iam
+
+OAuth/PKCE, HTTP transport, session stores, user profile DTOs, token exchange — stay outside `src/Iam/`.
+
+---
+
+## Source file organization plan
+
+**Problem:** 35 PHP files share a flat `src/` root. OAuth, resources, IAM, config, and Slim concerns are interleaved. Hard to navigate and will worsen as Client IAM lands.
+
+**Goal:** Group by concern using folders **and** matching sub-namespaces (`Amtgard\IdpClient\{Module}\`).
+
+PSR-4: `"Amtgard\\IdpClient\\": "src/"` — namespace follows directory layout.
+
+### Target layout
+
+```
+src/
+├── Client/
+│   └── IdpClient.php              # façade — delegates to OAuth, Resource, Iam
+├── Config/
+│   ├── IdpClientEnvironment.php
+│   ├── ArrayEnvironment.php
+│   ├── EnvIdpClientEnvironment.php
+│   ├── IdpClientEnvironmentFactory.php
+│   └── IdpClientFactory.php
+├── OAuth/
+│   ├── IdpProvider.php
+│   ├── Pkce.php
+│   ├── OAuthFlowState.php
+│   ├── OAuthFlowStateStore.php
+│   ├── SessionOAuthFlowStateStore.php
+│   ├── InMemoryOAuthFlowStateStore.php
+│   ├── AuthorizationResult.php
+│   ├── TokenSet.php
+│   └── Http/
+│       └── IdpTokenClient.php
+├── Resource/
+│   ├── Http/
+│   │   └── Psr18IdpHttpClient.php
+│   ├── UserProfile.php
+│   ├── OrkProfile.php
+│   ├── ValidatedSession.php
+│   └── AuthenticatedSession.php
+├── Iam/                           # started — all ork-iam touchpoints
+│   ├── AuthorizationEvaluator.php
+│   ├── AuthorizationCheck.php   # move from src/ root
+│   ├── OrnBootstrap.php
+│   └── Orn/
+│       ├── IdpFormat.php
+│       ├── IdpClaim.php
+│       └── IdpRequirement.php
+├── Session/
+│   └── SessionAuthStore.php
+├── Exception/                     # unchanged
+├── Slim/                          # unchanged
+└── ClientIam/                     # future — Section 8 HTTP client + DTOs
+    └── (planned)
+```
+
+### Migration phases
+
+| Phase | Action | Status |
+|-------|--------|--------|
+| **A** | Create `src/Iam/` for policy evaluation | Done |
+| **B** | Move files into subfolders + sub-namespaces | Done |
+| **C** | Slim `IdpClient` to thin façade if it grows (optional) | Pending |
+| **D** | Add `src/ClientIam/` when Section 8 is implemented | Deferred |
+
+### Public namespace map
+
+| Module | Namespace | Key types |
+|--------|-----------|-----------|
+| Client | `Amtgard\IdpClient\Client` | `IdpClient` |
+| Config | `Amtgard\IdpClient\Config` | `IdpClientFactory`, `IdpClientEnvironment`, `ArrayEnvironment` |
+| OAuth | `Amtgard\IdpClient\OAuth` | `TokenSet`, `Pkce`, `IdpProvider`, `OAuthFlowStateStore` |
+| Resource | `Amtgard\IdpClient\Resource` | `UserProfile`, `AuthenticatedSession`, `ValidatedSession` |
+| Iam | `Amtgard\IdpClient\Iam` | `AuthorizationCheck`, `AuthorizationEvaluator`, `OrnParser` |
+| Session | `Amtgard\IdpClient\Session` | `SessionAuthStore` |
+| Exception | `Amtgard\IdpClient\Exception` | `IdpClientException`, `ErrorCode`, … |
+| Slim | `Amtgard\IdpClient\Slim` | `IdpAuthController`, `SessionMiddleware` |
+
+### Test layout (mirror src)
+
+```
+tests/
+├── Config/
+├── OAuth/
+├── Resource/
+├── Iam/                           # started
+├── Session/
+├── Exception/
+└── Integration/
+```
+
+### Principles
+
+1. **One concern per folder** — OAuth never imports ClientIam; Iam never imports Slim.
+2. **IdpClient is the only public façade** — factories return `IdpClient`; sub-clients (`clientIam()`, future) are methods on it.
+3. **ork-iam isolation** — only `src/Iam/` (and future `ClientIam/Iam/` adapters) import `Amtgard\IAM\*`.
+4. **HTTP clients colocated with their domain** — `OAuth/Http/IdpTokenClient`, `Resource/Http/Psr18IdpHttpClient`, future `ClientIam/Http/`.
+
+---
+
+## Future — Client IAM API (deferred)
+
+IDP Section 8 (`/resources/client/*`) is not implemented. When added, place under `src/ClientIam/` with Basic-auth HTTP client. Reuse `src/Iam/` for ORN validation before writes. See IDP `ClientResourcesController.php` and `templates/api.md` Section 8.
+
+---
+
 ## Environment variables (consumer convention)
 
 Read by `IdpClientEnvironmentFactory::fromEnvVars()` — not by `IdpClient` directly:
@@ -232,7 +367,8 @@ Read by `IdpClientEnvironmentFactory::fromEnvVars()` — not by `IdpClient` dire
 | `/resources/userinfo` | Yes | `UserProfile` |
 | `/resources/validate` | Yes | `ValidatedSession` |
 | `/resources/jwt` | Yes | JWT string |
-| `/api/is_authorized` | Yes | `AuthorizationCheck` |
+| `/api/is_authorized` | Yes (HTTP for non-PHP) | Local `checkAuthorization()` via `ork-iam` |
+| `/resources/client/*` | Yes (Section 8) | Deferred — `ClientIam/` |
 
 ---
 
@@ -240,7 +376,9 @@ Read by `IdpClientEnvironmentFactory::fromEnvVars()` — not by `IdpClient` dire
 
 1. **Packagist name** — `amtgard/idp-php-client` vs `amtgard/idp-client`
 2. **Confidential clients + PKCE** — verify prod IDP accepts both before relaxing PKCE policy
-3. **Initial commit** — working tree is complete but not yet committed
+3. **Source reorg Phase C** — optional façade slim-down on `Client\IdpClient`
+4. **ork-iam 2.0 timing** — update `src/Iam/` internals when `ork-iam` 2.0 + `ork-iam-orn-definitions` 2.0 ship
+5. **Client IAM** — deferred; needs confidential test client with `iam_service`
 
 ---
 

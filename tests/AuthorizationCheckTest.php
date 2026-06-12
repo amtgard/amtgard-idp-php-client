@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Tests;
 
-use Amtgard\IdpClient\AuthorizationCheck;
+use Amtgard\IdpClient\Iam\AuthorizationCheck;
 use Amtgard\IdpClient\Tests\Support\Fixtures;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;

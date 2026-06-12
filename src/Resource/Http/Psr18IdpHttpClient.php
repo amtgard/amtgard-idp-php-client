@@ -2,15 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Amtgard\IdpClient\Http;
+namespace Amtgard\IdpClient\Resource\Http;
 
-use Amtgard\IdpClient\AuthorizationCheck;
 use Amtgard\IdpClient\Exception\ErrorCode;
 use Amtgard\IdpClient\Exception\ErrorMapper;
 use Amtgard\IdpClient\Exception\ResourceException;
-use Amtgard\IdpClient\IdpClientEnvironment;
-use Amtgard\IdpClient\UserProfile;
-use Amtgard\IdpClient\ValidatedSession;
+use Amtgard\IdpClient\Config\IdpClientEnvironment;
+use Amtgard\IdpClient\Resource\UserProfile;
+use Amtgard\IdpClient\Resource\ValidatedSession;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -58,22 +57,6 @@ final class Psr18IdpHttpClient
     }
 
     /**
-     * @param list<mixed> $policy IAM policy ORN JSON array
-     */
-    public function checkAuthorization(array $policy, string $requirement): AuthorizationCheck
-    {
-        $body = http_build_query([
-            'policy' => json_encode($policy, JSON_THROW_ON_ERROR),
-            'requirement' => $requirement,
-        ]);
-
-        $response = $this->postApi('/api/is_authorized', $body, 'application/x-www-form-urlencoded');
-        $data = $this->decodeJson($response['body'], $response['status'], '/api/is_authorized');
-
-        return AuthorizationCheck::fromArray($data);
-    }
-
-    /**
      * @return array{status: int, body: string}
      */
     private function getResource(string $path, string $accessToken): array
@@ -87,23 +70,6 @@ final class Psr18IdpHttpClient
             ->withHeader('User-Agent', $this->environment->httpUserAgent());
 
         return $this->sendAndValidate($path, $request, unauthorized: true);
-    }
-
-    /**
-     * @return array{status: int, body: string}
-     */
-    private function postApi(string $path, string $body, string $contentType): array
-    {
-        $url = $this->environment->idpBaseUrl() . $path;
-
-        $request = $this->requests
-            ->createRequest('POST', $url)
-            ->withHeader('Content-Type', $contentType)
-            ->withHeader('Accept', 'application/json')
-            ->withHeader('User-Agent', $this->environment->httpUserAgent())
-            ->withBody($this->streams->createStream($body));
-
-        return $this->sendAndValidate($path, $request, unauthorized: false);
     }
 
     /**

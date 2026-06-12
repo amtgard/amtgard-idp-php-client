@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Tests;
 
-use Amtgard\IdpClient\IdpClient;
-use Amtgard\IdpClient\IdpClientEnvironment;
-use Amtgard\IdpClient\IdpClientEnvironmentFactory;
-use Amtgard\IdpClient\IdpClientFactory;
-use Amtgard\IdpClient\InMemoryOAuthFlowStateStore;
-use Amtgard\IdpClient\OAuthFlowState;
-use Amtgard\IdpClient\Pkce;
+use Amtgard\IdpClient\Client\IdpClient;
+use Amtgard\IdpClient\Config\IdpClientEnvironment;
+use Amtgard\IdpClient\Config\IdpClientEnvironmentFactory;
+use Amtgard\IdpClient\Config\IdpClientFactory;
+use Amtgard\IdpClient\OAuth\InMemoryOAuthFlowStateStore;
+use Amtgard\IdpClient\OAuth\OAuthFlowState;
+use Amtgard\IdpClient\OAuth\Pkce;
 use Amtgard\IdpClient\Tests\Support\Fixtures;
 use Amtgard\IdpClient\Tests\Support\MockPsr18Client;
 use Amtgard\IdpClient\Tests\Support\Psr17HttpClient;

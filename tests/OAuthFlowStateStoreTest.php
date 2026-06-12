@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Tests;
 
-use Amtgard\IdpClient\InMemoryOAuthFlowStateStore;
-use Amtgard\IdpClient\OAuthFlowState;
-use Amtgard\IdpClient\SessionOAuthFlowStateStore;
+use Amtgard\IdpClient\OAuth\InMemoryOAuthFlowStateStore;
+use Amtgard\IdpClient\OAuth\OAuthFlowState;
+use Amtgard\IdpClient\OAuth\SessionOAuthFlowStateStore;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 

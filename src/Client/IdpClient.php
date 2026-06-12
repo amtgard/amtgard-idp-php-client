@@ -2,13 +2,28 @@
 
 declare(strict_types=1);
 
-namespace Amtgard\IdpClient;
+namespace Amtgard\IdpClient\Client;
 
+use Amtgard\IAM\Allowance\Policy;
+use Amtgard\IAM\Requirement\Requirement;
+use Amtgard\IdpClient\Config\IdpClientEnvironment;
 use Amtgard\IdpClient\Exception\ErrorCode;
 use Amtgard\IdpClient\Exception\InvalidOAuthStateException;
 use Amtgard\IdpClient\Exception\TokenExchangeException;
-use Amtgard\IdpClient\Http\IdpTokenClient;
-use Amtgard\IdpClient\Http\Psr18IdpHttpClient;
+use Amtgard\IdpClient\Iam\AuthorizationCheck;
+use Amtgard\IdpClient\Iam\AuthorizationEvaluator;
+use Amtgard\IdpClient\Iam\OrnParser;
+use Amtgard\IdpClient\OAuth\AuthorizationResult;
+use Amtgard\IdpClient\OAuth\Http\IdpTokenClient;
+use Amtgard\IdpClient\OAuth\IdpProvider;
+use Amtgard\IdpClient\OAuth\OAuthFlowState;
+use Amtgard\IdpClient\OAuth\OAuthFlowStateStore;
+use Amtgard\IdpClient\OAuth\Pkce;
+use Amtgard\IdpClient\OAuth\TokenSet;
+use Amtgard\IdpClient\Resource\AuthenticatedSession;
+use Amtgard\IdpClient\Resource\Http\Psr18IdpHttpClient;
+use Amtgard\IdpClient\Resource\UserProfile;
+use Amtgard\IdpClient\Resource\ValidatedSession;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
@@ -21,6 +36,8 @@ final class IdpClient
     private readonly IdpProvider $provider;
     private readonly IdpTokenClient $tokenClient;
     private readonly Psr18IdpHttpClient $resourceClient;
+    private readonly AuthorizationEvaluator $authorizationEvaluator;
+    private readonly OrnParser $ornParser;
 
     public function __construct(
         private readonly IdpClientEnvironment $environment,
@@ -36,6 +53,8 @@ final class IdpClient
             : new \Nyholm\Psr7\Factory\Psr17Factory();
         $this->tokenClient = new IdpTokenClient($environment, $http, $requests, $streams);
         $this->resourceClient = new Psr18IdpHttpClient($environment, $http, $requests, $streams);
+        $this->authorizationEvaluator = new AuthorizationEvaluator();
+        $this->ornParser = new OrnParser();
     }
 
     public function beginAuthorization(?string $returnTo = null): ResponseInterface
@@ -154,12 +173,22 @@ final class IdpClient
         return $this->resourceClient->fetchJwt($accessToken);
     }
 
-    /**
-     * @param list<mixed> $policy IAM policy ORN JSON array
-     */
-    public function checkAuthorization(array $policy, string $requirement): AuthorizationCheck
+    public function checkAuthorization(Policy $policy, Requirement $requirement): AuthorizationCheck
     {
-        return $this->resourceClient->checkAuthorization($policy, $requirement);
+        return $this->authorizationEvaluator->evaluate($policy, $requirement);
+    }
+
+    /**
+     * @param list<string> $orns ORN claim strings (JWT policy claim shape)
+     */
+    public function policyFromOrns(array $orns): Policy
+    {
+        return $this->ornParser->policyFromOrns($orns);
+    }
+
+    public function requirementFromOrn(string $orn): Requirement
+    {
+        return $this->ornParser->requirementFromOrn($orn);
     }
 
     public function refresh(TokenSet $tokens): TokenSet
@@ -182,7 +211,6 @@ final class IdpClient
         IdpClientEnvironment $environment,
         ClientInterface $http,
     ): IdpProvider {
-        // League's provider only accepts Guzzle; token exchange uses the PSR-18 client directly.
         if ($http instanceof \GuzzleHttp\ClientInterface) {
             return IdpProvider::fromEnvironment($environment, $http);
         }

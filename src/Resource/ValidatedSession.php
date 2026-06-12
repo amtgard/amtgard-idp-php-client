@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Amtgard\IdpClient;
+namespace Amtgard\IdpClient\Resource;
 
 /**
  * Response from GET /resources/validate — session presence heartbeat with core identity fields.
