@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Amtgard\IdpClient;
+namespace Amtgard\IdpClient\Iam;
 
 /**
- * Response from POST /api/is_authorized — IAM policy evaluation for backend services.
+ * Result of IAM policy evaluation via {@see AuthorizationEvaluator}.
  */
 final readonly class AuthorizationCheck
 {

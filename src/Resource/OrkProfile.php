@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Amtgard\IdpClient;
+namespace Amtgard\IdpClient\Resource;
 
 final readonly class OrkProfile
 {

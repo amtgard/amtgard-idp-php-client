@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Tests;
 
-use Amtgard\IdpClient\AuthenticatedSession;
-use Amtgard\IdpClient\SessionAuthStore;
+use Amtgard\IdpClient\Resource\AuthenticatedSession;
+use Amtgard\IdpClient\Session\SessionAuthStore;
 use Amtgard\IdpClient\Tests\Support\Fixtures;
-use Amtgard\IdpClient\TokenSet;
-use Amtgard\IdpClient\UserProfile;
+use Amtgard\IdpClient\OAuth\TokenSet;
+use Amtgard\IdpClient\Resource\UserProfile;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 

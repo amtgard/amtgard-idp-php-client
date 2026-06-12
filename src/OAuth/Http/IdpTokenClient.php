@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Amtgard\IdpClient\Http;
+namespace Amtgard\IdpClient\OAuth\Http;
 
 use Amtgard\IdpClient\Exception\ErrorCode;
 use Amtgard\IdpClient\Exception\ErrorMapper;
 use Amtgard\IdpClient\Exception\TokenExchangeException;
-use Amtgard\IdpClient\IdpClientEnvironment;
-use Amtgard\IdpClient\TokenSet;
+use Amtgard\IdpClient\Config\IdpClientEnvironment;
+use Amtgard\IdpClient\OAuth\TokenSet;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;

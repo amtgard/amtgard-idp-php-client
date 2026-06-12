@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Amtgard\IdpClient;
+namespace Amtgard\IdpClient\Session;
+
+use Amtgard\IdpClient\Resource\AuthenticatedSession;
 
 final class SessionAuthStore
 {

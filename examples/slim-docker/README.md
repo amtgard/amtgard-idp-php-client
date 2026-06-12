@@ -12,7 +12,7 @@ Reference [Slim 4](https://www.slimframework.com/) app exercising **every** publ
 | `validate()` | `GET /resources/validate` | Bearer |
 | `fetchJwt()` | `GET /resources/jwt` | Bearer |
 | `refresh()` | `POST /refresh` | Bearer |
-| `checkAuthorization()` | `POST /api/check-authorization` | None (public IDP policy API) |
+| `checkAuthorization()` | `POST /api/check-authorization` | None (local `ork-iam` evaluation via example route) |
 | `SessionAuthStore` | `GET /me`, `/logout` | Session |
 
 `completeAuthorization()` is used internally by `completeLogin()` on callback.

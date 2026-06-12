@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Tests;
 
-use Amtgard\IdpClient\IdpClient;
-use Amtgard\IdpClient\IdpClientFactory;
+use Amtgard\IdpClient\Client\IdpClient;
+use Amtgard\IdpClient\Config\IdpClientFactory;
 use PHPUnit\Framework\TestCase;
 
 final class IdpClientFactoryEnvTest extends TestCase

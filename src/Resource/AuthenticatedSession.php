@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Amtgard\IdpClient;
+namespace Amtgard\IdpClient\Resource;
+
+use Amtgard\IdpClient\OAuth\TokenSet;
 
 final readonly class AuthenticatedSession
 {

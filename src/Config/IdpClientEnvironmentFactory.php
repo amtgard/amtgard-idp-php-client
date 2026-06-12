@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Amtgard\IdpClient;
+namespace Amtgard\IdpClient\Config;
 
 use Amtgard\IdpClient\Exception\IdpConfigurationException;
 

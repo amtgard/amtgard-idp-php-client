@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Amtgard\IdpClient\IdpClient;
-use Amtgard\IdpClient\IdpClientFactory;
-use Amtgard\IdpClient\SessionAuthStore;
+use Amtgard\IdpClient\Client\IdpClient;
+use Amtgard\IdpClient\Config\IdpClientFactory;
+use Amtgard\IdpClient\Session\SessionAuthStore;
 use Amtgard\IdpClient\Slim\IdpAuthController;
 use Amtgard\IdpSlimExample\Controllers\HealthController;
 use Amtgard\IdpSlimExample\Controllers\HomeController;

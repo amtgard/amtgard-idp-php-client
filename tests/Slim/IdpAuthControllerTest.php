@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Tests\Slim;
 
-use Amtgard\IdpClient\IdpClient;
-use Amtgard\IdpClient\InMemoryOAuthFlowStateStore;
-use Amtgard\IdpClient\OAuthFlowState;
-use Amtgard\IdpClient\Pkce;
-use Amtgard\IdpClient\SessionAuthStore;
+use Amtgard\IdpClient\Client\IdpClient;
+use Amtgard\IdpClient\OAuth\InMemoryOAuthFlowStateStore;
+use Amtgard\IdpClient\OAuth\OAuthFlowState;
+use Amtgard\IdpClient\OAuth\Pkce;
+use Amtgard\IdpClient\Session\SessionAuthStore;
 use Amtgard\IdpClient\Slim\IdpAuthController;
 use Amtgard\IdpClient\Tests\Support\Fixtures;
 use Amtgard\IdpClient\Tests\Support\MockPsr18Client;
@@ -98,9 +98,9 @@ final class IdpAuthControllerTest extends TestCase
     public function testLogoutClearsSessionAndRedirectsHome(): void
     {
         $authStore = new SessionAuthStore();
-        $authStore->store(new \Amtgard\IdpClient\AuthenticatedSession(
-            new \Amtgard\IdpClient\TokenSet('access'),
-            \Amtgard\IdpClient\UserProfile::fromArray(['id' => 1, 'email' => 'a@b.com', 'jwt' => 'jwt']),
+        $authStore->store(new \Amtgard\IdpClient\Resource\AuthenticatedSession(
+            new \Amtgard\IdpClient\OAuth\TokenSet('access'),
+            \Amtgard\IdpClient\Resource\UserProfile::fromArray(['id' => 1, 'email' => 'a@b.com', 'jwt' => 'jwt']),
         ));
 
         $controller = new IdpAuthController(

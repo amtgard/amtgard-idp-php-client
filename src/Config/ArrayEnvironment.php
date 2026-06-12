@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Amtgard\IdpClient;
+namespace Amtgard\IdpClient\Config;
 
-final readonly class EnvIdpClientEnvironment implements IdpClientEnvironment
+final readonly class ArrayEnvironment implements IdpClientEnvironment
 {
     /**
      * @param list<string> $scopes

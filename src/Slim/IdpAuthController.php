@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Slim;
 
+use Amtgard\IdpClient\Client\IdpClient;
 use Amtgard\IdpClient\Exception\IdpClientException;
-use Amtgard\IdpClient\IdpClient;
-use Amtgard\IdpClient\SessionAuthStore;
+use Amtgard\IdpClient\Session\SessionAuthStore;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Interfaces\RouteParserInterface;

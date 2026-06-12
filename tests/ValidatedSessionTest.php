@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Amtgard\IdpClient\Tests;
 
 use Amtgard\IdpClient\Tests\Support\Fixtures;
-use Amtgard\IdpClient\ValidatedSession;
+use Amtgard\IdpClient\Resource\ValidatedSession;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 

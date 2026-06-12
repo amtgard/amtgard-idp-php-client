@@ -7,7 +7,7 @@ This library encodes **one** integration path so third-party apps stop re-implem
 - Authorization code grant with **PKCE (S256)** — always, including confidential clients
 - Scopes: `profile email` (space-separated)
 - Resource calls: `GET /resources/userinfo`, `GET /resources/validate`, `GET /resources/jwt`
-- Policy evaluation: `POST /api/is_authorized` (backend services)
+- Policy evaluation: local `checkAuthorization()` via `amtgard/ork-iam` (backend services)
 - Typed results: `TokenSet`, `UserProfile`, `OrkProfile`, `ValidatedSession`, `AuthorizationCheck`
 
 Apps can wire config manually (`IdpClientEnvironment`) or use the on-rails factories that read standard `IDP_*` environment variables.
@@ -50,7 +50,7 @@ IDP_REDIRECT_URI=https://my.app/oauth/callback
 With `.env` populated, one factory call wires environment, OAuth flow state, and HTTP client:
 
 ```php
-use Amtgard\IdpClient\IdpClientFactory;
+use Amtgard\IdpClient\Config\IdpClientFactory;
 
 session_start();
 
@@ -76,7 +76,7 @@ Factory chain:
 ### Session persistence (any PHP app)
 
 ```php
-use Amtgard\IdpClient\SessionAuthStore;
+use Amtgard\IdpClient\Session\SessionAuthStore;
 
 $authStore = new SessionAuthStore();
 
@@ -98,9 +98,9 @@ $authStore->clear();
 When you cannot use `IDP_*` env vars (multi-tenant config, tests, non-`.env` apps), implement `IdpClientEnvironment` yourself or use `ArrayEnvironment`:
 
 ```php
-use Amtgard\IdpClient\ArrayEnvironment;
-use Amtgard\IdpClient\IdpClientFactory;
-use Amtgard\IdpClient\SessionOAuthFlowStateStore;
+use Amtgard\IdpClient\Config\ArrayEnvironment;
+use Amtgard\IdpClient\Config\IdpClientFactory;
+use Amtgard\IdpClient\OAuth\SessionOAuthFlowStateStore;
 
 $env = new ArrayEnvironment(
     idpBaseUrl: 'https://idp.amtgard.com',
@@ -115,7 +115,7 @@ $idp = IdpClientFactory::fromEnvironment($env, new SessionOAuthFlowStateStore())
 Equivalent to the on-rails env factory, but explicit:
 
 ```php
-use Amtgard\IdpClient\IdpClientEnvironmentFactory;
+use Amtgard\IdpClient\Config\IdpClientEnvironmentFactory;
 
 $env = IdpClientEnvironmentFactory::fromEnvVars([
     'IDP_BASE_URL' => 'https://idp.amtgard.com',
@@ -126,6 +126,81 @@ $env = IdpClientEnvironmentFactory::fromEnvVars([
 ```
 
 For app-specific env layout, wrap or replace `EnvIdpClientEnvironment` with your own class implementing `IdpClientEnvironment` and pass it to `IdpClientFactory::fromEnvironment()`.
+
+## Public API reference
+
+`IdpClient` is the main entry point. Factories and session helpers wire it; Slim accelerators wrap the OAuth methods.
+
+### `IdpClient`
+
+| Method | Parameters | Returns | Purpose |
+|--------|------------|---------|---------|
+| `beginAuthorization` | `?string $returnTo = null` | `ResponseInterface` (302) | Start OAuth: generate PKCE verifier/challenge and `state`, store flow state, redirect browser to IDP authorize URL. Optional `$returnTo` is stored and restored after callback. |
+| `completeAuthorization` | `ServerRequestInterface $callbackRequest` | `AuthorizationResult` | Finish OAuth on `/oauth/callback`: validate `state`, exchange authorization `code` for tokens. Does **not** fetch user profile. |
+| `completeLogin` | `ServerRequestInterface $callbackRequest` | `AuthenticatedSession` | Convenience wrapper: `completeAuthorization()` + `fetchUserProfile()`. Use on callback to get tokens and profile in one call. |
+| `fetchUserProfile` | `string $accessToken` | `UserProfile` | `GET /resources/userinfo` — full profile including optional ORK link data and embedded JWT. |
+| `validate` | `string $accessToken` | `ValidatedSession` | `GET /resources/validate` — lightweight session heartbeat (`id`, `email`, `jwt`). |
+| `fetchJwt` | `string $accessToken` | `string` | `GET /resources/jwt` — fresh authorization JWT string (server may cache for validate/pubsub). |
+| `checkAuthorization` | `Policy $policy`, `Requirement $requirement` | `AuthorizationCheck` | Evaluate whether IAM policy claims satisfy a requirement. Uses **local** `amtgard/ork-iam` (`Policy::isAuthorized`) — same logic as the IDP `/api/is_authorized` endpoint, no HTTP round-trip. |
+| `policyFromOrns` | `list<string> $orns` | `Amtgard\IAM\Allowance\Policy` | Parse JWT-style policy claim strings into a `Policy` object. |
+| `requirementFromOrn` | `string $orn` | `Amtgard\IAM\Requirement\Requirement` | Parse a requirement ORN string into a `Requirement` object. |
+| `refresh` | `TokenSet $tokens` | `TokenSet` | Exchange `refresh_token` for a new token set via `POST /oauth/token`. |
+
+### Factories and configuration
+
+| Class | Method | Purpose |
+|-------|--------|---------|
+| `IdpClientFactory` | `fromEnvVars(?array $env, ?OAuthFlowStateStore, ?ClientInterface)` | On-rails bootstrap from `IDP_*` environment variables. |
+| `IdpClientFactory` | `fromEnvironment(IdpClientEnvironment, OAuthFlowStateStore, ?ClientInterface)` | Build `IdpClient` with explicit environment and flow-state store. |
+| `IdpClientEnvironmentFactory` | `fromEnvVars(?array $env)` | Parse `IDP_*` vars into `EnvIdpClientEnvironment`. |
+| `ArrayEnvironment` | constructor | In-memory `IdpClientEnvironment` for tests or custom config. |
+
+### Session helpers
+
+| Class | Method | Purpose |
+|-------|--------|---------|
+| `SessionAuthStore` | `store(AuthenticatedSession)` | Persist logged-in session in `$_SESSION`. |
+| `SessionAuthStore` | `get(): ?AuthenticatedSession` | Read stored session. |
+| `SessionAuthStore` | `clear()` | Log out (remove session data). |
+| `SessionAuthStore` | `isAuthenticated(): bool` | Whether a session is stored. |
+| `SessionOAuthFlowStateStore` | `put` / `pull` | Store OAuth `state` + PKCE verifier between `/login` and `/oauth/callback` (session-backed). |
+| `InMemoryOAuthFlowStateStore` | `put` / `pull` | Same as above, in-memory (unit tests). |
+
+### Slim accelerators (`Amtgard\IdpClient\Slim\`)
+
+| Class | Method | Purpose |
+|-------|--------|---------|
+| `IdpAuthController` | `login` | Calls `beginAuthorization()`; honors `?return_to=`. |
+| `IdpAuthController` | `callback` | Calls `completeLogin()` and `SessionAuthStore::store()`. |
+| `IdpAuthController` | `logout` | Clears `SessionAuthStore`. |
+| `SessionMiddleware` | `__invoke` | Starts PHP session for OAuth flow state and auth store. |
+
+### Result types
+
+| Type | Fields / notes |
+|------|----------------|
+| `TokenSet` | `accessToken()`, `refreshToken()`, `expiresIn()`, raw token array |
+| `AuthorizationResult` | `tokens`, `?returnTo` |
+| `AuthenticatedSession` | `tokens`, `profile` (`UserProfile`), `?returnTo` |
+| `UserProfile` | `id`, `email`, `jwt`, `?orkProfile` |
+| `OrkProfile` | ORK link fields when user has linked an ORK account |
+| `ValidatedSession` | `id`, `email`, `jwt` |
+| `AuthorizationCheck` | `isAuthorized` (bool) — `Amtgard\IdpClient\Iam\AuthorizationCheck` |
+
+### IAM types (`amtgard/ork-iam`)
+
+| Type | Namespace | Role |
+|------|-----------|------|
+| `Policy` | `Amtgard\IAM\Allowance\Policy` | User's IAM claim set — passed to `checkAuthorization()` |
+| `Requirement` | `Amtgard\IAM\Requirement\Requirement` | Action/resource being checked — passed to `checkAuthorization()` |
+
+Supporting packages:
+
+- `amtgard/ork-iam-orn-definitions` — registers ORK and Attendance ORN classes
+- `Amtgard\IdpClient\Iam\OrnBootstrap` — registers IDP-namespace ORN classes (`Idp` prefix)
+- `Amtgard\IdpClient\Iam\OrnParser` — internal parser used by `policyFromOrns()` / `requirementFromOrn()`
+
+Custom integrator `iam_service` namespaces (Client IAM API, future) require additional ORN registration at runtime.
 
 ## Resource API
 
@@ -144,20 +219,24 @@ $validated = $idp->validate($token);
 $jwt = $idp->fetchJwt($token);
 ```
 
-Backend services can evaluate IAM policies without a user bearer token:
+Backend services can evaluate IAM policies without a user bearer token or extra HTTP call:
 
 ```php
-$check = $idp->checkAuthorization(
-    policy: $userPolicyOrnArray,
-    requirement: 'Idp:0:0:0:0:IDP/EditClient',
-);
+use Amtgard\IAM\Allowance\Policy;
+use Amtgard\IAM\Requirement\Requirement;
+
+// Build typed ORN objects (from JWT policy claim JSON, config, etc.)
+$policy = $idp->policyFromOrns($userPolicyOrnArray);
+$requirement = $idp->requirementFromOrn('Idp:0:0:0:0:IDP/EditClient');
+
+$check = $idp->checkAuthorization($policy, $requirement);
 
 if ($check->isAuthorized) {
     // allow action
 }
 ```
 
-`checkAuthorization()` posts to the public `/api/is_authorized` endpoint. Most OAuth client apps only need `fetchUserProfile()` and `validate()`; use policy evaluation when your service already holds a user's IAM policy JSON.
+`checkAuthorization()` accepts `ork-iam` `Policy` and `Requirement` objects — not raw strings. Use `policyFromOrns()` and `requirementFromOrn()` to parse ORN strings at your API boundary (HTTP handlers, JWT decode, etc.). Evaluation is local via `Policy::isAuthorized()`. Most OAuth client apps only need `fetchUserProfile()` and `validate()`; use policy evaluation when your service already holds a user's IAM policy claim array.
 
 ## Slim 4 integration
 
@@ -173,9 +252,9 @@ if ($check->isAuthorized) {
 <?php
 declare(strict_types=1);
 
-use Amtgard\IdpClient\IdpClient;
-use Amtgard\IdpClient\IdpClientFactory;
-use Amtgard\IdpClient\SessionAuthStore;
+use Amtgard\IdpClient\Client\IdpClient;
+use Amtgard\IdpClient\Config\IdpClientFactory;
+use Amtgard\IdpClient\Session\SessionAuthStore;
 use Amtgard\IdpClient\Slim\IdpAuthController;
 
 return [
@@ -241,8 +320,8 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use Amtgard\IdpClient\Exception\IdpClientException;
-use Amtgard\IdpClient\IdpClient;
-use Amtgard\IdpClient\SessionAuthStore;
+use Amtgard\IdpClient\Client\IdpClient;
+use Amtgard\IdpClient\Session\SessionAuthStore;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Routing\RouteContext;
@@ -313,7 +392,7 @@ Register this controller in `container.php` instead of `Amtgard\IdpClient\Slim\I
 | Userinfo | `{idpBaseUrl}/resources/userinfo` |
 | Validate | `{idpBaseUrl}/resources/validate` |
 | JWT | `{idpBaseUrl}/resources/jwt` |
-| Policy check | `{idpBaseUrl}/api/is_authorized` |
+| Policy check | Local via `checkAuthorization()` (IDP also exposes `{idpBaseUrl}/api/is_authorized` for non-PHP clients) |
 
 ## Error handling
 
@@ -329,7 +408,7 @@ Catch specific types where useful:
 |-----------|------|
 | `InvalidOAuthStateException` | Callback/state/CSRF problems before token exchange |
 | `TokenExchangeException` | `/oauth/token` rejected the request |
-| `ResourceException` | Resource/API HTTP or JSON problems (`/resources/*`, `/api/is_authorized`) |
+| `ResourceException` | Resource/API HTTP or JSON problems (`/resources/*`) and IAM ORN parse errors (`checkAuthorization`) |
 
 ### Error code reference
 
@@ -480,6 +559,19 @@ Each code maps to a common client implementation mistake. Fix the root cause, th
 
 ---
 
+#### `IDP_CLIENT_IAM_INVALID_ORN` {#error-idp_client_iam_invalid_orn}
+
+**When:** `checkAuthorization()` received a policy claim or requirement string that `amtgard/ork-iam` cannot parse.
+
+**Common causes:**
+- Malformed ORN syntax (missing colons, unknown service prefix)
+- Requirement prefix not registered (custom `iam_service` namespaces need runtime ORN registration)
+- Policy claim uses wrong proviso segment count for its service format
+
+**Fix:** Validate ORN strings against your IAM service format before calling `checkAuthorization()`. Ensure `amtgard/ork-iam-orn-definitions` is installed for built-in prefixes (ORK, Attendance, Idp).
+
+---
+
 #### `IDP_CLIENT_RESOURCE_POLICY_ERROR` {#error-idp_client_resource_policy_error}
 
 **When:** Resource endpoint returned HTTP 422 (malformed IAM policy on the user account).
@@ -603,7 +695,7 @@ Optional env vars:
 | `/resources/userinfo` | Yes | Typed `UserProfile` |
 | `/resources/validate` | Yes | Typed `ValidatedSession` |
 | `/resources/jwt` | Yes | JWT string |
-| `/api/is_authorized` | Yes | Typed `AuthorizationCheck` |
+| `/api/is_authorized` | Yes (HTTP API for non-PHP clients) | Local `checkAuthorization()` via `ork-iam` |
 
 ## License
 

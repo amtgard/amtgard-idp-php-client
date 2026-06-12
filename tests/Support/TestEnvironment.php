@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Tests\Support;
 
-use Amtgard\IdpClient\ArrayEnvironment;
-use Amtgard\IdpClient\IdpClientEnvironment;
+use Amtgard\IdpClient\Config\ArrayEnvironment;
+use Amtgard\IdpClient\Config\IdpClientEnvironment;
 
 final class TestEnvironment
 {
@@ -17,7 +17,7 @@ final class TestEnvironment
         return new ArrayEnvironment(
             idpBaseUrl: $overrides['idpBaseUrl'] ?? 'https://idp.test',
             clientId: $overrides['clientId'] ?? 'test-client',
-            clientSecret: $overrides['clientSecret'] ?? 'secret',
+            clientSecret: array_key_exists('clientSecret', $overrides) ? $overrides['clientSecret'] : 'secret',
             redirectUri: $overrides['redirectUri'] ?? 'https://app.test/oauth/callback',
             scopes: $overrides['scopes'] ?? ['profile', 'email'],
             httpUserAgent: $overrides['httpUserAgent'] ?? IdpClientEnvironment::DEFAULT_HTTP_USER_AGENT,
