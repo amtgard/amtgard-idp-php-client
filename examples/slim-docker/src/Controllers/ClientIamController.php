@@ -8,6 +8,7 @@ use Amtgard\IdpClient\Client\IdpClient;
 use Amtgard\IdpClient\ClientIam\ClientIamClient;
 use Amtgard\IdpClient\Exception\ClientIamException;
 use Amtgard\IdpClient\Exception\IdpClientException;
+use Amtgard\IdpSlimExample\Config\ClientIamExampleDefaults;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -23,28 +24,49 @@ final class ClientIamController
 
     public function serviceFormat(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        return $this->execute($response, fn () => $this->requireClientIam()->getServiceFormat(), static fn ($format) => [
-            'iam_service' => $format->iamService,
-            'service_format' => $format->serviceFormat,
-            'is_default' => $format->isDefault,
-        ]);
+        return $this->execute(
+            $response,
+            fn () => $this->requireClientIam()->getServiceFormat(),
+            static function ($format) {
+                $composeDefaults = ClientIamExampleDefaults::fromServiceFormat($format);
+
+                return [
+                    'iam_service' => $format->iamService ?? $composeDefaults['iam_service'],
+                    'service_format' => $format->serviceFormat,
+                    'is_default' => $format->isDefault,
+                    'compose_defaults' => [
+                        'segments' => $composeDefaults['segments'],
+                        'resource' => $composeDefaults['resource'],
+                    ],
+                ];
+            },
+        );
     }
 
     public function composeClaim(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $body = $this->parseJsonBody($request);
-        $segments = is_array($body['segments'] ?? null) ? $body['segments'] : [];
-        $resource = is_string($body['resource'] ?? null) ? $body['resource'] : '';
+        $clientIam = $this->requireClientIam();
+        $derived = ClientIamExampleDefaults::fromServiceFormat($clientIam->getServiceFormat());
 
-        if ($resource === '') {
-            return $this->json($response, ['error' => 'resource is required'], 400);
+        $useDefaultSegments = !array_key_exists('segments', $body)
+            || (is_array($body['segments']) && $body['segments'] === []);
+        $useDefaultResource = !array_key_exists('resource', $body)
+            || !is_string($body['resource'])
+            || $body['resource'] === '';
+
+        $segments = $useDefaultSegments ? $derived['segments'] : $body['segments'];
+        if (!is_array($segments)) {
+            return $this->json($response, ['error' => 'segments must be a JSON object'], 400);
         }
 
-        return $this->execute($response, function () use ($segments, $resource) {
-            $claim = $this->requireClientIam()->composeClaim($segments, $resource);
+        $resource = $useDefaultResource ? $derived['resource'] : $body['resource'];
 
-            return ['orn' => $claim->buildOrn()];
-        });
+        return $this->execute(
+            $response,
+            fn () => $clientIam->composeClaim($segments, $resource),
+            static fn ($claim) => ['orn' => $claim->buildOrn()],
+        );
     }
 
     private function requireClientIam(): ClientIamClient

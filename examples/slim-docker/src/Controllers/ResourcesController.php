@@ -6,7 +6,10 @@ namespace Amtgard\IdpSlimExample\Controllers;
 
 use Amtgard\IdpClient\Client\IdpClient;
 use Amtgard\IdpClient\Exception\IdpClientException;
+use Amtgard\IdpSlimExample\Config\ExampleDefaults;
 use Amtgard\IdpClient\Resource\AuthenticatedSession;
+use Amtgard\IdpClient\Resource\Http\IdpHttpCookies;
+use Amtgard\IdpClient\Resource\UserProfile;
 use Amtgard\IdpClient\Session\SessionAuthStore;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -28,7 +31,14 @@ final class ResourcesController
             return $session;
         }
 
-        return $this->execute($response, fn () => $this->idpClient->fetchUserProfile($session->tokens->accessToken()), static function ($profile) {
+        $cookies = $this->idpCookies($session);
+
+        return $this->execute($response, function () use ($session, $cookies) {
+            $profile = $this->idpClient->fetchUserProfileForAccessToken($session->tokens->accessToken(), $cookies);
+            $this->storeSession($session, $profile, $cookies);
+
+            return $profile;
+        }, static function ($profile) {
             return [
                 'id' => $profile->id,
                 'email' => $profile->email,
@@ -45,7 +55,20 @@ final class ResourcesController
             return $session;
         }
 
-        return $this->execute($response, fn () => $this->idpClient->validate($session->tokens->accessToken()), static function ($validated) {
+        $cookies = $this->idpCookies($session);
+
+        return $this->execute($response, function () use ($session, $cookies) {
+            $validated = $this->idpClient->validateForAccessToken($session->tokens->accessToken(), $cookies);
+            $profile = new UserProfile(
+                $validated->id,
+                $validated->email,
+                $validated->jwt,
+                $session->profile->orkProfile,
+            );
+            $this->storeSession($session, $profile, $cookies);
+
+            return $validated;
+        }, static function ($validated) {
             return [
                 'id' => $validated->id,
                 'email' => $validated->email,
@@ -61,7 +84,14 @@ final class ResourcesController
             return $session;
         }
 
-        return $this->execute($response, fn () => $this->idpClient->fetchJwt($session->tokens->accessToken()), static function (string $jwt) {
+        $cookies = $this->idpCookies($session);
+
+        return $this->execute($response, function () use ($session, $cookies) {
+            $jwt = $this->idpClient->fetchJwtForAccessToken($session->tokens->accessToken(), $cookies);
+            $this->storeSession($session, $session->profile, $cookies);
+
+            return $jwt;
+        }, static function (string $jwt) {
             return ['jwt' => $jwt];
         });
     }
@@ -73,10 +103,12 @@ final class ResourcesController
             return $session;
         }
 
-        return $this->execute($response, function () use ($session) {
+        $cookies = $this->idpCookies($session);
+
+        return $this->execute($response, function () use ($session, $cookies) {
             $tokens = $this->idpClient->refresh($session->tokens);
-            $profile = $this->idpClient->fetchUserProfile($tokens->accessToken());
-            $this->authStore->store(new AuthenticatedSession($tokens, $profile, $session->returnTo));
+            $profile = $this->idpClient->fetchUserProfileForAccessToken($tokens->accessToken(), $cookies);
+            $this->storeSession($session, $profile, $cookies, $tokens);
 
             return $tokens;
         }, static function ($tokens) {
@@ -105,7 +137,7 @@ final class ResourcesController
             }
         }
 
-        $policy = $body['policy'] ?? [];
+        $policy = array_key_exists('policy', $body) ? $body['policy'] : ExampleDefaults::policyOrns();
         if (is_string($policy)) {
             try {
                 $policy = json_decode($policy, true, 512, JSON_THROW_ON_ERROR);
@@ -122,7 +154,7 @@ final class ResourcesController
             ], 400);
         }
 
-        $requirement = $body['requirement'] ?? getenv('EXAMPLE_POLICY_REQUIREMENT') ?: 'Idp:0:0:0:0:IDP/EditClient';
+        $requirement = $body['requirement'] ?? ExampleDefaults::policyRequirement();
         if (!is_string($requirement) || $requirement === '') {
             return $this->json($response, [
                 'error' => 'requirement must be a non-empty string',
@@ -153,6 +185,25 @@ final class ResourcesController
                 'message' => $exception->getMessage(),
             ], 400);
         }
+    }
+
+    private function idpCookies(AuthenticatedSession $session): IdpHttpCookies
+    {
+        return IdpHttpCookies::fromHeader($session->idpCookies);
+    }
+
+    private function storeSession(
+        AuthenticatedSession $session,
+        UserProfile $profile,
+        IdpHttpCookies $cookies,
+        ?\Amtgard\IdpClient\OAuth\TokenSet $tokens = null,
+    ): void {
+        $this->authStore->store(new AuthenticatedSession(
+            $tokens ?? $session->tokens,
+            $profile,
+            $session->returnTo,
+            $cookies->toHeader(),
+        ));
     }
 
     private function requireAuthenticatedSession(ResponseInterface $response): AuthenticatedSession|ResponseInterface

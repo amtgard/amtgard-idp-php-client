@@ -24,25 +24,25 @@ final class Psr18IdpHttpClient
         private readonly StreamFactoryInterface $streams,
     ) {}
 
-    public function fetchUserProfile(string $accessToken): UserProfile
+    public function fetchUserProfile(string $authorizationJwt, ?IdpHttpCookies $cookies = null): UserProfile
     {
-        $response = $this->getResource('/resources/userinfo', $accessToken);
+        $response = $this->getResource('/resources/userinfo', $authorizationJwt, $cookies);
         $data = $this->decodeJson($response['body'], $response['status'], '/resources/userinfo');
 
         return UserProfile::fromArray($data);
     }
 
-    public function validate(string $accessToken): ValidatedSession
+    public function validate(string $authorizationJwt, ?IdpHttpCookies $cookies = null): ValidatedSession
     {
-        $response = $this->getResource('/resources/validate', $accessToken);
+        $response = $this->getResource('/resources/validate', $authorizationJwt, $cookies);
         $data = $this->decodeJson($response['body'], $response['status'], '/resources/validate');
 
         return ValidatedSession::fromArray($data);
     }
 
-    public function fetchJwt(string $accessToken): string
+    public function fetchJwt(string $oauthAccessToken, ?IdpHttpCookies $cookies = null): string
     {
-        $response = $this->getResource('/resources/jwt', $accessToken);
+        $response = $this->getResource('/resources/jwt', $oauthAccessToken, $cookies);
         $data = $this->decodeJson($response['body'], $response['status'], '/resources/jwt');
 
         $jwt = $data['jwt'] ?? null;
@@ -59,24 +59,33 @@ final class Psr18IdpHttpClient
     /**
      * @return array{status: int, body: string}
      */
-    private function getResource(string $path, string $accessToken): array
+    private function getResource(string $path, string $bearerToken, ?IdpHttpCookies $cookies = null): array
     {
         $url = $this->environment->idpBaseUrl() . $path;
 
         $request = $this->requests
             ->createRequest('GET', $url)
-            ->withHeader('Authorization', 'Bearer ' . $accessToken)
+            ->withHeader('Authorization', 'Bearer ' . $bearerToken)
             ->withHeader('Accept', 'application/json')
             ->withHeader('User-Agent', $this->environment->httpUserAgent());
 
-        return $this->sendAndValidate($path, $request, unauthorized: true);
+        $cookieHeader = $cookies?->toHeader();
+        if ($cookieHeader !== null && $cookieHeader !== '') {
+            $request = $request->withHeader('Cookie', $cookieHeader);
+        }
+
+        return $this->sendAndValidate($path, $request, unauthorized: true, cookies: $cookies);
     }
 
     /**
      * @return array{status: int, body: string}
      */
-    private function sendAndValidate(string $path, \Psr\Http\Message\RequestInterface $request, bool $unauthorized): array
-    {
+    private function sendAndValidate(
+        string $path,
+        \Psr\Http\Message\RequestInterface $request,
+        bool $unauthorized,
+        ?IdpHttpCookies $cookies = null,
+    ): array {
         try {
             $response = $this->http->sendRequest($request);
         } catch (ClientExceptionInterface $exception) {
@@ -90,6 +99,8 @@ final class Psr18IdpHttpClient
                 previous: $exception,
             );
         }
+
+        $cookies?->absorbFromResponse($response);
 
         $body = (string) $response->getBody();
         $status = $response->getStatusCode();
@@ -107,14 +118,21 @@ final class Psr18IdpHttpClient
         }
 
         if ($unauthorized && $status === 401) {
-            throw new ResourceException(
-                ErrorCode::ResourceUnauthorized,
-                sprintf(
+            $message = $path === '/resources/validate'
+                ? sprintf(
+                    'Authorization JWT or IDP session rejected by %s (HTTP 401). '
+                    . 'This endpoint requires the IDP host session cookie from a prior resource call '
+                    . '(capture Set-Cookie via IdpHttpCookies). %s',
+                    $path,
+                    sprintf('See README %s for fix instructions.', ErrorCode::ResourceUnauthorized->readmeAnchor()),
+                )
+                : sprintf(
                     'Access token rejected by %s (HTTP 401). %s',
                     $path,
                     sprintf('See README %s for fix instructions.', ErrorCode::ResourceUnauthorized->readmeAnchor()),
-                ),
-            );
+                );
+
+            throw new ResourceException(ErrorCode::ResourceUnauthorized, $message);
         }
 
         if ($status === 422) {

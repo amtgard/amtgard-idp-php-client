@@ -75,6 +75,27 @@ final class Psr18IdpHttpClientTest extends TestCase
         $this->assertSame('eyJhbGciOiJIUzI1NiJ9.fresh-jwt', $jwt);
     }
 
+    public function testValidateForwardsAndCapturesIdpCookies(): void
+    {
+        $http = new MockPsr18Client();
+        $http->enqueue(
+            $this->psr17->createResponse(200)
+                ->withHeader('Set-Cookie', 'PHPSESSID=from-userinfo; Path=/')
+                ->withBody($this->psr17->createStream(Fixtures::read('userinfo_without_ork.json'))),
+        );
+        $http->enqueue(
+            $this->psr17->createResponse(200)->withBody($this->psr17->createStream(Fixtures::read('validate.json'))),
+        );
+
+        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17, $this->psr17);
+        $cookies = new \Amtgard\IdpClient\Resource\Http\IdpHttpCookies();
+
+        $client->fetchUserProfile('auth-jwt', $cookies);
+        $client->validate('auth-jwt', $cookies);
+
+        $this->assertSame('PHPSESSID=from-userinfo', $http->requests[1]->getHeaderLine('Cookie'));
+    }
+
     public function testUnauthorizedMapsToResourceException(): void
     {
         $http = new MockPsr18Client();

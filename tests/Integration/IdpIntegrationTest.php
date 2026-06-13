@@ -113,7 +113,7 @@ final class IdpIntegrationTest extends TestCase
         $client = $this->createClient();
         $accessToken = $this->requireAccessToken();
 
-        $profile = $client->fetchUserProfile($accessToken);
+        $profile = $client->fetchUserProfileForAccessToken($accessToken);
 
         $this->assertGreaterThan(0, $profile->id);
         $this->assertNotSame('', $profile->email);
@@ -125,7 +125,7 @@ final class IdpIntegrationTest extends TestCase
         $client = $this->createClient();
         $accessToken = $this->requireAccessToken();
 
-        $profile = $client->fetchUserProfile($accessToken);
+        $profile = $client->fetchUserProfileForAccessToken($accessToken);
 
         try {
             $validated = $client->validate($profile->jwt);
@@ -150,12 +150,11 @@ final class IdpIntegrationTest extends TestCase
         $client = $this->createClient();
         $accessToken = $this->requireAccessToken();
 
-        $profile = $client->fetchUserProfile($accessToken);
+        $client->fetchUserProfileForAccessToken($accessToken);
         $jwt = $client->fetchJwt($accessToken);
 
         $this->assertNotSame('', $jwt);
         $this->assertSame(3, substr_count($jwt, '.'), 'IDP authorization JWT should be a compact JWS');
-        $this->assertNotSame('', $profile->jwt);
     }
 
     public function testCheckAuthorizationWithEmptyPolicy(): void

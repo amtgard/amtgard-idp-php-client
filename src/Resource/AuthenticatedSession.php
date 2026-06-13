@@ -12,7 +12,13 @@ final readonly class AuthenticatedSession
         public TokenSet $tokens,
         public UserProfile $profile,
         public ?string $returnTo = null,
+        public ?string $idpCookies = null,
     ) {}
+
+    public function withIdpCookies(?string $idpCookies): self
+    {
+        return new self($this->tokens, $this->profile, $this->returnTo, $idpCookies);
+    }
 
     /**
      * @return array<string, mixed>
@@ -24,6 +30,7 @@ final readonly class AuthenticatedSession
             'refresh_token' => $this->tokens->refreshToken(),
             'expires_at' => $this->tokens->expiresAt()?->format(\DateTimeInterface::ATOM),
             'return_to' => $this->returnTo,
+            'idp_cookies' => $this->idpCookies,
             'profile' => [
                 'id' => $this->profile->id,
                 'email' => $this->profile->email,
@@ -73,6 +80,9 @@ final readonly class AuthenticatedSession
             ),
             profile: UserProfile::fromArray($profileData),
             returnTo: isset($data['return_to']) && is_string($data['return_to']) ? $data['return_to'] : null,
+            idpCookies: isset($data['idp_cookies']) && is_string($data['idp_cookies']) && $data['idp_cookies'] !== ''
+                ? $data['idp_cookies']
+                : null,
         );
     }
 }

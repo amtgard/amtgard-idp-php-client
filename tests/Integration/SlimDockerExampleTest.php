@@ -58,7 +58,7 @@ final class SlimDockerExampleTest extends TestCase
 
     public function testHomeListsAllLibraryEndpoints(): void
     {
-        $response = $this->http->get('/');
+        $response = $this->http->get('/api/home');
         $body = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
 
         $this->assertSame(200, $response->getStatusCode());
@@ -83,12 +83,25 @@ final class SlimDockerExampleTest extends TestCase
     public function testHomeShowsUnauthenticatedByDefault(): void
     {
         $jar = new CookieJar();
-        $response = $this->http->get('/', ['cookies' => $jar]);
+        $response = $this->http->get('/api/home', ['cookies' => $jar]);
         $body = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertFalse($body['authenticated']);
         $this->assertSame('/login', $body['login_url']);
+    }
+
+    public function testHtmlDashboardIsServedAtRoot(): void
+    {
+        $response = $this->http->get('/');
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('text/html', $response->getHeaderLine('Content-Type'));
+
+        $html = (string) $response->getBody();
+        $this->assertStringContainsString('IDP Slim Example', $html);
+        $this->assertStringContainsString('Request trace', $html);
+        $this->assertStringContainsString('/api/check-authorization', $html);
     }
 
     public function testMeRequiresAuthentication(): void

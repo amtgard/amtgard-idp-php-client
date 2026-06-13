@@ -7,6 +7,7 @@ namespace Amtgard\IdpClient\ClientIam;
 use Amtgard\IAM\Allowance\Claim;
 use Amtgard\IAM\Allowance\Policy;
 use Amtgard\IAM\ClaimFactory;
+use Amtgard\IAM\OrkServices;
 use Amtgard\IAM\PolicyFactory;
 use Amtgard\IdpClient\ClientIam\Http\Psr18ClientIamHttpClient;
 use Amtgard\IdpClient\ClientIam\Iam\IntegratorOrnRegistrar;
@@ -22,6 +23,7 @@ use Amtgard\IdpClient\Config\IdpClientEnvironment;
 use Amtgard\IdpClient\Exception\ClientIamException;
 use Amtgard\IdpClient\Exception\ErrorCode;
 use Amtgard\IdpClient\Exception\IdpConfigurationException;
+use Amtgard\IdpClient\Iam\OrnBootstrap;
 use Amtgard\IdpClient\Iam\OrnWireFormat;
 use Amtgard\IdpClient\Iam\ServiceFormatParser;
 
@@ -86,6 +88,10 @@ final class ClientIamClient
         $prefix = $this->requireIamService();
         $schema = $this->requireServiceFormatSlots();
         IntegratorOrnRegistrar::register($prefix, $schema);
+
+        if (strcasecmp($prefix, OrkServices::Idp->value) === 0) {
+            OrnBootstrap::register();
+        }
 
         $orn = OrnWireFormat::composeFullOrn($prefix, $schema, $segments, $resource);
 
@@ -218,6 +224,10 @@ final class ClientIamClient
         if ($service === null || $service === '') {
             $this->getServiceFormat();
             $service = $this->cachedServiceFormat?->iamService;
+        }
+
+        if (($service === null || $service === '') && $this->cachedServiceFormat?->isDefault === true) {
+            $service = 'Idp';
         }
 
         if ($service === null || $service === '') {
