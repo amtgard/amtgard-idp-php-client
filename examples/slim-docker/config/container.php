@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use Amtgard\IdpClient\Client\IdpClient;
 use Amtgard\IdpClient\Config\IdpClientFactory;
+use Amtgard\IdpClient\Exception\IdpConfigurationException;
 use Amtgard\IdpClient\Session\SessionAuthStore;
 use Amtgard\IdpClient\Slim\IdpAuthController;
+use Amtgard\IdpSlimExample\Controllers\ClientIamController;
 use Amtgard\IdpSlimExample\Controllers\HealthController;
 use Amtgard\IdpSlimExample\Controllers\HomeController;
 use Amtgard\IdpSlimExample\Controllers\MeController;
@@ -48,4 +50,15 @@ return [
         $container->get(IdpClient::class),
         $container->get(SessionAuthStore::class),
     ),
+
+    ClientIamController::class => function (ContainerInterface $container) {
+        $idp = $container->get(IdpClient::class);
+        $clientIam = null;
+        try {
+            $clientIam = $idp->clientIam();
+        } catch (IdpConfigurationException) {
+        }
+
+        return new ClientIamController($idp, $clientIam);
+    },
 ];

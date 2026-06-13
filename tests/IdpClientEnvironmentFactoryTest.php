@@ -65,4 +65,19 @@ final class IdpClientEnvironmentFactoryTest extends TestCase
             $this->assertContains('IDP_REDIRECT_URI', $exception->missingVariables());
         }
     }
+
+    public function testFromEnvVarsReadsOptionalClientIamVariables(): void
+    {
+        $env = IdpClientEnvironmentFactory::fromEnvVars([
+            'IDP_BASE_URL' => 'https://idp.test',
+            'IDP_CLIENT_ID' => 'app',
+            'IDP_CLIENT_SECRET' => 'secret',
+            'IDP_REDIRECT_URI' => 'https://app.test/callback',
+            'IDP_IAM_SERVICE' => 'Skbc',
+            'IDP_IAM_SERVICE_FORMAT' => '["Configuration","Kingdom"]',
+        ]);
+
+        $this->assertSame('Skbc', $env->iamService());
+        $this->assertSame(['Configuration', 'Kingdom'], $env->iamServiceFormat());
+    }
 }

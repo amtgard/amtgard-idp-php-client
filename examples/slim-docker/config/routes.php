@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Amtgard\IdpClient\Slim\IdpAuthController;
 use Amtgard\IdpClient\Slim\SessionMiddleware;
+use Amtgard\IdpSlimExample\Controllers\ClientIamController;
 use Amtgard\IdpSlimExample\Controllers\HealthController;
 use Amtgard\IdpSlimExample\Controllers\HomeController;
 use Amtgard\IdpSlimExample\Controllers\MeController;
@@ -15,6 +16,10 @@ return function (App $app): void {
     $app->get('/health', [HealthController::class, 'health'])->setName('health');
     $app->post('/api/check-authorization', [ResourcesController::class, 'checkAuthorization'])
         ->setName('api.check_authorization');
+    $app->get('/api/client-iam/service-format', [ClientIamController::class, 'serviceFormat'])
+        ->setName('api.client_iam.service_format');
+    $app->post('/api/client-iam/compose-claim', [ClientIamController::class, 'composeClaim'])
+        ->setName('api.client_iam.compose_claim');
 
     $app->group('', function (RouteCollectorProxy $group) {
         $group->get('/', [HomeController::class, 'index'])->setName('home');
