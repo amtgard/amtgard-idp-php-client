@@ -43,6 +43,8 @@ final class IdpClientEnvironmentFactory
             redirectUri: self::requiredString($env, 'IDP_REDIRECT_URI'),
             httpUserAgent: self::optionalString($env, 'IDP_HTTP_USER_AGENT')
                 ?? IdpClientEnvironment::DEFAULT_HTTP_USER_AGENT,
+            iamService: self::optionalString($env, 'IDP_IAM_SERVICE'),
+            iamServiceFormat: self::optionalStringList($env, 'IDP_IAM_SERVICE_FORMAT'),
         );
     }
 
@@ -74,5 +76,33 @@ final class IdpClientEnvironmentFactory
         $value = $env[$key] ?? getenv($key);
 
         return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
+     * @param array<string, mixed> $env
+     *
+     * @return list<string>|null
+     */
+    private static function optionalStringList(array $env, string $key): ?array
+    {
+        $value = $env[$key] ?? getenv($key);
+        if (!is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $decoded = json_decode($value, true);
+        if (!is_array($decoded) || $decoded === [] || array_is_list($decoded) === false) {
+            throw new IdpConfigurationException([$key]);
+        }
+
+        $list = [];
+        foreach ($decoded as $item) {
+            if (!is_string($item) || $item === '') {
+                throw new IdpConfigurationException([$key]);
+            }
+            $list[] = $item;
+        }
+
+        return $list;
     }
 }

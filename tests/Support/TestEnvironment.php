@@ -21,6 +21,8 @@ final class TestEnvironment
             redirectUri: $overrides['redirectUri'] ?? 'https://app.test/oauth/callback',
             scopes: $overrides['scopes'] ?? ['profile', 'email'],
             httpUserAgent: $overrides['httpUserAgent'] ?? IdpClientEnvironment::DEFAULT_HTTP_USER_AGENT,
+            iamService: $overrides['iamService'] ?? null,
+            iamServiceFormat: $overrides['iamServiceFormat'] ?? null,
         );
     }
 }

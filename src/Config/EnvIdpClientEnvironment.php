@@ -16,6 +16,9 @@ final readonly class EnvIdpClientEnvironment implements IdpClientEnvironment
         private string $redirectUri,
         private array $scopes = ['profile', 'email'],
         private string $httpUserAgent = IdpClientEnvironment::DEFAULT_HTTP_USER_AGENT,
+        private ?string $iamService = null,
+        /** @var list<string>|null */
+        private ?array $iamServiceFormat = null,
     ) {}
 
     public function idpBaseUrl(): string
@@ -46,5 +49,15 @@ final readonly class EnvIdpClientEnvironment implements IdpClientEnvironment
     public function httpUserAgent(): string
     {
         return $this->httpUserAgent;
+    }
+
+    public function iamService(): ?string
+    {
+        return $this->iamService;
+    }
+
+    public function iamServiceFormat(): ?array
+    {
+        return $this->iamServiceFormat;
     }
 }

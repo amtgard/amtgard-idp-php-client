@@ -21,9 +21,16 @@ interface IdpClientEnvironment
     /** @return list<string> */
     public function scopes(): array;
 
-    /**
-     * Outbound User-Agent for all server-side IDP HTTP (token exchange + resources).
-     * Default: {@see self::DEFAULT_HTTP_USER_AGENT} (`AmtgardIDP/1.0`).
-     */
+    /** Outbound User-Agent for all server-side IDP HTTP (token exchange + resources). */
     public function httpUserAgent(): string;
+
+    /** Offline IAM service prefix for Client IAM validation without GET. */
+    public function iamService(): ?string;
+
+    /**
+     * Offline service format slot names (JSON array in env) for Client IAM without GET.
+     *
+     * @return list<string>|null
+     */
+    public function iamServiceFormat(): ?array;
 }

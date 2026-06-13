@@ -1,0 +1,9 @@
+{
+  "claims": [
+    {
+      "service": "Skbc",
+      "provisos": ":0:123:",
+      "resource": "Editor/Write"
+    }
+  ]
+}

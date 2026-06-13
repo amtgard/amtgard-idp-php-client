@@ -6,6 +6,8 @@ namespace Amtgard\IdpClient\Client;
 
 use Amtgard\IAM\Allowance\Policy;
 use Amtgard\IAM\Requirement\Requirement;
+use Amtgard\IdpClient\ClientIam\ClientIamClient;
+use Amtgard\IdpClient\ClientIam\Http\Psr18ClientIamHttpClient;
 use Amtgard\IdpClient\Config\IdpClientEnvironment;
 use Amtgard\IdpClient\Exception\ErrorCode;
 use Amtgard\IdpClient\Exception\InvalidOAuthStateException;
@@ -38,12 +40,13 @@ final class IdpClient
     private readonly Psr18IdpHttpClient $resourceClient;
     private readonly AuthorizationEvaluator $authorizationEvaluator;
     private readonly OrnParser $ornParser;
+    private ?ClientIamClient $clientIam = null;
 
     public function __construct(
         private readonly IdpClientEnvironment $environment,
         private readonly OAuthFlowStateStore $flowState,
-        ClientInterface $http,
-        RequestFactoryInterface $requests,
+        private readonly ClientInterface $http,
+        private readonly RequestFactoryInterface $requests,
         private readonly ResponseFactoryInterface $responses,
         ?IdpProvider $provider = null,
     ) {
@@ -205,6 +208,30 @@ final class IdpClient
         }
 
         return $this->tokenClient->refresh($refreshToken);
+    }
+
+    public function clientIam(): ClientIamClient
+    {
+        ClientIamClient::requireSecret($this->environment);
+
+        if ($this->clientIam === null) {
+            $streams = $this->requests instanceof StreamFactoryInterface
+                ? $this->requests
+                : new \Nyholm\Psr7\Factory\Psr17Factory();
+            $http = new Psr18ClientIamHttpClient(
+                $this->environment,
+                $this->http,
+                $this->requests,
+                $streams,
+            );
+            $this->clientIam = new ClientIamClient(
+                $http,
+                $this->environment->iamService(),
+                $this->environment->iamServiceFormat(),
+            );
+        }
+
+        return $this->clientIam;
     }
 
     private static function createDefaultProvider(

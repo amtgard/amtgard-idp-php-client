@@ -24,6 +24,14 @@ enum ErrorCode: string
     case MalformedJson = 'IDP_CLIENT_MALFORMED_JSON';
     case WafOrHtmlResponse = 'IDP_CLIENT_WAF_OR_HTML_RESPONSE';
     case HttpTransport = 'IDP_CLIENT_HTTP_TRANSPORT';
+    case ClientIamUnauthorized = 'IDP_CLIENT_CLIENT_IAM_UNAUTHORIZED';
+    case ClientIamValidation = 'IDP_CLIENT_CLIENT_IAM_VALIDATION';
+    case ClientIamNotFound = 'IDP_CLIENT_CLIENT_IAM_NOT_FOUND';
+    case ClientIamConflict = 'IDP_CLIENT_CLIENT_IAM_CONFLICT';
+    case ClientIamInvalidOrn = 'IDP_CLIENT_CLIENT_IAM_INVALID_ORN';
+    case ClientIamUnexpectedStatus = 'IDP_CLIENT_CLIENT_IAM_UNEXPECTED_STATUS';
+    case ClientIamMalformedJson = 'IDP_CLIENT_CLIENT_IAM_MALFORMED_JSON';
+    case ClientIamMissingSecret = 'IDP_CLIENT_CLIENT_IAM_MISSING_SECRET';
 
     public function readmeAnchor(): string
     {
