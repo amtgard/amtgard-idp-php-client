@@ -11,6 +11,7 @@ use Amtgard\IdpClient\ClientIam\Http\Psr18ClientIamHttpClient;
 use Amtgard\IdpClient\Config\IdpClientEnvironment;
 use Amtgard\IdpClient\Exception\ErrorCode;
 use Amtgard\IdpClient\Exception\InvalidOAuthStateException;
+use Amtgard\IdpClient\Exception\ResourceException;
 use Amtgard\IdpClient\Exception\TokenExchangeException;
 use Amtgard\IdpClient\Iam\AuthorizationCheck;
 use Amtgard\IdpClient\Iam\AuthorizationEvaluator;
@@ -23,6 +24,7 @@ use Amtgard\IdpClient\OAuth\OAuthFlowStateStore;
 use Amtgard\IdpClient\OAuth\Pkce;
 use Amtgard\IdpClient\OAuth\TokenSet;
 use Amtgard\IdpClient\Resource\AuthenticatedSession;
+use Amtgard\IdpClient\Resource\Http\IdpHttpCookies;
 use Amtgard\IdpClient\Resource\Http\Psr18IdpHttpClient;
 use Amtgard\IdpClient\Resource\UserProfile;
 use Amtgard\IdpClient\Resource\ValidatedSession;
@@ -153,27 +155,88 @@ final class IdpClient
     public function completeLogin(ServerRequestInterface $callbackRequest): AuthenticatedSession
     {
         $result = $this->completeAuthorization($callbackRequest);
+        $cookies = new IdpHttpCookies();
 
         return new AuthenticatedSession(
             $result->tokens,
-            $this->fetchUserProfile($result->tokens->accessToken()),
+            $this->fetchUserProfileForAccessToken($result->tokens->accessToken(), $cookies),
             $result->returnTo,
+            $cookies->toHeader(),
         );
     }
 
-    public function fetchUserProfile(string $accessToken): UserProfile
+    /**
+     * Load the full user profile for an OAuth access token.
+     *
+     * Prefers the documented elevation flow ({@see fetchJwt()} then {@see fetchUserProfile()}).
+     * If the IDP rejects elevation at `/resources/jwt`, falls back to calling `/resources/userinfo`
+     * with the access token directly (supported on some deployed IDP builds).
+     */
+    public function fetchUserProfileForAccessToken(string $oauthAccessToken, ?IdpHttpCookies $cookies = null): UserProfile
     {
-        return $this->resourceClient->fetchUserProfile($accessToken);
+        return $this->fetchUserProfile($this->resolveResourceBearer($oauthAccessToken, $cookies), $cookies);
     }
 
-    public function validate(string $accessToken): ValidatedSession
+    /**
+     * Session heartbeat for an OAuth access token.
+     *
+     * Calls {@see fetchUserProfile()} then {@see validate()} with the same bearer token so the IDP
+     * Redis cache (keyed on the userinfo Authorization header) matches the validate challenge JWT.
+     */
+    public function validateForAccessToken(string $oauthAccessToken, ?IdpHttpCookies $cookies = null): ValidatedSession
     {
-        return $this->resourceClient->validate($accessToken);
+        $bearer = $this->resolveResourceBearer($oauthAccessToken, $cookies);
+        $this->fetchUserProfile($bearer, $cookies);
+
+        return $this->validate($bearer, $cookies);
     }
 
-    public function fetchJwt(string $accessToken): string
+    /**
+     * @param string $authorizationJwt RS256 authorization JWT from {@see fetchJwt()} or {@see UserProfile::$jwt}
+     */
+    public function fetchUserProfile(string $authorizationJwt, ?IdpHttpCookies $cookies = null): UserProfile
     {
-        return $this->resourceClient->fetchJwt($accessToken);
+        return $this->resourceClient->fetchUserProfile($authorizationJwt, $cookies);
+    }
+
+    /**
+     * @param string $authorizationJwt RS256 authorization JWT from {@see fetchJwt()} or {@see UserProfile::$jwt}
+     */
+    public function validate(string $authorizationJwt, ?IdpHttpCookies $cookies = null): ValidatedSession
+    {
+        return $this->resourceClient->validate($authorizationJwt, $cookies);
+    }
+
+    /**
+     * @param string $oauthAccessToken OAuth access token from {@see TokenSet::accessToken()}
+     */
+    public function fetchJwt(string $oauthAccessToken, ?IdpHttpCookies $cookies = null): string
+    {
+        return $this->resourceClient->fetchJwt($oauthAccessToken, $cookies);
+    }
+
+    /**
+     * Authorization JWT for an OAuth access token.
+     *
+     * Calls GET /resources/jwt when the access token is opaque. Some IDP deployments already
+     * issue JWT-shaped access tokens that work directly on /resources/userinfo; those are
+     * returned as-is because /resources/jwt rejects authorization JWTs.
+     */
+    public function fetchJwtForAccessToken(string $oauthAccessToken, ?IdpHttpCookies $cookies = null): string
+    {
+        if (substr_count($oauthAccessToken, '.') === 2) {
+            return $oauthAccessToken;
+        }
+
+        try {
+            return $this->fetchJwt($oauthAccessToken, $cookies);
+        } catch (ResourceException $exception) {
+            if ($exception->errorCode() !== ErrorCode::ResourceUnauthorized) {
+                throw $exception;
+            }
+        }
+
+        return $oauthAccessToken;
     }
 
     public function checkAuthorization(Policy $policy, Requirement $requirement): AuthorizationCheck
@@ -232,6 +295,29 @@ final class IdpClient
         }
 
         return $this->clientIam;
+    }
+
+    /**
+     * Bearer token to use on /resources/userinfo and /resources/validate for an OAuth access token.
+     *
+     * Opaque access tokens are elevated at /resources/jwt when the IDP supports it. Compact JWS
+     * tokens are sent to userinfo directly — /resources/jwt rejects them as authorization JWTs.
+     */
+    private function resolveResourceBearer(string $oauthAccessToken, ?IdpHttpCookies $cookies = null): string
+    {
+        if (substr_count($oauthAccessToken, '.') === 2) {
+            return $oauthAccessToken;
+        }
+
+        try {
+            return $this->fetchJwt($oauthAccessToken, $cookies);
+        } catch (ResourceException $exception) {
+            if ($exception->errorCode() !== ErrorCode::ResourceUnauthorized) {
+                throw $exception;
+            }
+        }
+
+        return $oauthAccessToken;
     }
 
     private static function createDefaultProvider(

@@ -27,14 +27,15 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-Open http://localhost:38080/ — JSON home lists every demo route. Click `/login` to start OAuth against **https://idp.amtgard.com** (default `IDP_BASE_URL`).
+Open http://localhost:38080/ — the HTML dashboard lists every demo route with one-click request tracing. Use **Login** to start OAuth against **https://idp.amtgard.com** (default `IDP_BASE_URL`). Machine-readable coverage is at `GET /api/home`.
 
 ## Routes
 
 | Route | Purpose |
 |-------|---------|
 | `GET /health` | Integration probe (no session) |
-| `GET /` | Home — auth status + `library_coverage` map |
+| `GET /` | HTML dashboard — auth status, endpoint buttons, request trace |
+| `GET /api/home` | JSON home — auth status + `library_coverage` map |
 | `GET /login` | Redirect to IDP authorize |
 | `GET /oauth/callback` | OAuth callback (`completeLogin`) |
 | `GET /logout` | Clear `SessionAuthStore` |
@@ -43,9 +44,39 @@ Open http://localhost:38080/ — JSON home lists every demo route. Click `/login
 | `GET /resources/validate` | `validate()` heartbeat |
 | `GET /resources/jwt` | `fetchJwt()` |
 | `POST /refresh` | `refresh()` + update session tokens |
-| `POST /api/check-authorization` | `checkAuthorization()` — JSON body `{policy, requirement}` |
+| `POST /api/check-authorization` | `checkAuthorization()` — JSON body `{policy, requirement}` (both optional; see defaults below) |
+| `GET /api/client-iam/service-format` | Client IAM service format (when configured) |
+| `POST /api/client-iam/compose-claim` | Compose integrator claim ORN — JSON `{segments, resource}` (both optional; see defaults below) |
+
+### Demo defaults
+
+Authorization check and Client IAM compose-claim use shared defaults from `ExampleDefaults` (overridable in `.env`):
+
+| Variable | Default | Used by |
+|----------|---------|---------|
+| `EXAMPLE_POLICY` | `["Idp:0:0:0:0:IDP/EditClient"]` | Authorization check policy |
+| `EXAMPLE_POLICY_REQUIREMENT` | `Idp:0:0:0:0:IDP/EditClient` | Authorization check requirement |
+
+Client IAM compose-claim defaults are derived from `GET /api/client-iam/service-format` (`compose_defaults` in the JSON response). The dashboard loads them on page open. An empty `segments` object in the POST body is treated as “use derived defaults” (zero-filled keys from `service_format`). Integrator clients with a custom `iam_service` get `Editor/Write` as the sample resource; built-in `Idp` clients get `IDP/EditClient`.
+
+Optional offline overrides when the IDP returns `is_default` without `iam_service`:
+
+| Variable | Example |
+|----------|---------|
+| `IDP_IAM_SERVICE` | `Idp` |
+| `IDP_IAM_SERVICE_FORMAT` | `["Configuration","Game","Kingdom","Park"]` |
+
+With the built-in authorization defaults, `POST /api/check-authorization` with `{}` returns `is_authorized: true`.
 
 ### Policy check example
+
+```bash
+curl -s -X POST http://localhost:38080/api/check-authorization \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+```
+
+Explicit empty policy (deny):
 
 ```bash
 curl -s -X POST http://localhost:38080/api/check-authorization \

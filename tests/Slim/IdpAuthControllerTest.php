@@ -73,6 +73,11 @@ final class IdpAuthControllerTest extends TestCase
         $idpClient = $this->createIdpClient($flowState, $http);
         $http->enqueue(
             $this->psr17->createResponse(200)->withBody(
+                $this->psr17->createStream(Fixtures::read('jwt.json')),
+            ),
+        );
+        $http->enqueue(
+            $this->psr17->createResponse(200)->withBody(
                 $this->psr17->createStream(Fixtures::read('userinfo_without_ork.json')),
             ),
         );

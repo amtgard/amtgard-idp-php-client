@@ -92,6 +92,28 @@ final class ClientIamClientTest extends TestCase
         $this->assertSame('Skbc:0:123:Editor/Write', $claim->buildOrn());
     }
 
+    public function testComposeClaimUsesIdpPrefixWhenDefaultServiceFormatHasNoIamService(): void
+    {
+        $http = new MockPsr18Client();
+        $http->enqueue(
+            $this->psr17->createResponse(200)->withBody(
+                $this->psr17->createStream(json_encode([
+                    'iam_service' => null,
+                    'service_format' => ['Configuration', 'Game', 'Kingdom', 'Park'],
+                    'is_default' => true,
+                ], JSON_THROW_ON_ERROR)),
+            ),
+        );
+
+        $client = $this->createClientIamClient($http);
+        $claim = $client->composeClaim(
+            ['Configuration' => 0, 'Game' => 0, 'Kingdom' => 0, 'Park' => 0],
+            'IDP/EditClient',
+        );
+
+        $this->assertSame('Idp:0:0:0:0:IDP/EditClient', $claim->buildOrn());
+    }
+
     public function testAddPolicyClaimSerializesWireParts(): void
     {
         $http = new MockPsr18Client();

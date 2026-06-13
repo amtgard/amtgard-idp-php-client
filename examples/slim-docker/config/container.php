@@ -40,9 +40,19 @@ return [
     },
 
     HealthController::class => fn () => new HealthController(),
-    HomeController::class => fn (ContainerInterface $container) => new HomeController(
-        $container->get(SessionAuthStore::class),
-    ),
+    HomeController::class => function (ContainerInterface $container) {
+        $clientIamConfigured = false;
+        try {
+            $container->get(IdpClient::class)->clientIam();
+            $clientIamConfigured = true;
+        } catch (IdpConfigurationException) {
+        }
+
+        return new HomeController(
+            $container->get(SessionAuthStore::class),
+            $clientIamConfigured,
+        );
+    },
     MeController::class => fn (ContainerInterface $container) => new MeController(
         $container->get(SessionAuthStore::class),
     ),

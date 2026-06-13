@@ -107,6 +107,7 @@ final class IdpClientTest extends TestCase
         $tokenJson = Fixtures::read('token_response.json');
         $client = $this->createClient([
             new GuzzleResponse(200, ['Content-Type' => 'application/json'], $tokenJson),
+            new GuzzleResponse(200, ['Content-Type' => 'application/json'], Fixtures::read('jwt.json')),
             new GuzzleResponse(200, ['Content-Type' => 'application/json'], Fixtures::read('userinfo_without_ork.json')),
         ]);
 
@@ -117,6 +118,44 @@ final class IdpClientTest extends TestCase
 
         $this->assertSame(42, $session->profile->id);
         $this->assertSame('test-access-token', $session->tokens->accessToken());
+    }
+
+    public function testCompleteLoginFallsBackWhenJwtElevationIsRejected(): void
+    {
+        $state = Pkce::generateState();
+        $this->flowState->put(new OAuthFlowState($state, Pkce::generateVerifier()));
+
+        $tokenJson = Fixtures::read('token_response.json');
+        $client = $this->createClient([
+            new GuzzleResponse(200, ['Content-Type' => 'application/json'], $tokenJson),
+            new GuzzleResponse(401),
+            new GuzzleResponse(200, ['Content-Type' => 'application/json'], Fixtures::read('userinfo_without_ork.json')),
+        ]);
+
+        $request = (new ServerRequest('GET', '/oauth/callback'))
+            ->withQueryParams(['code' => 'auth-code-123', 'state' => $state]);
+
+        $session = $client->completeLogin($request);
+
+        $this->assertSame(42, $session->profile->id);
+        $this->assertSame('eyJ.noork.jwt', $session->profile->jwt);
+    }
+
+    public function testFetchUserProfileForAccessTokenFallsBackWhenJwtElevationIsRejected(): void
+    {
+        $http = new MockPsr18Client();
+        $http->enqueue($this->psr17->createResponse(401));
+        $http->enqueue(
+            $this->psr17->createResponse(200)->withBody(
+                $this->psr17->createStream(Fixtures::read('userinfo_without_ork.json')),
+            ),
+        );
+
+        $client = $this->createClient(http: $http);
+        $profile = $client->fetchUserProfileForAccessToken('oauth-access-token');
+
+        $this->assertSame(42, $profile->id);
+        $this->assertStringEndsWith('/resources/userinfo', (string) $http->requests[1]->getUri());
     }
 
     public function testCompleteAuthorizationRejectsMissingStateParam(): void
@@ -302,6 +341,41 @@ final class IdpClientTest extends TestCase
 
         $this->expectException(TokenExchangeException::class);
         $client->refresh(new TokenSet('access-only'));
+    }
+
+    public function testFetchJwtForAccessTokenReturnsJwsAccessTokenWithoutHttpCall(): void
+    {
+        $http = new MockPsr18Client();
+        $client = $this->createClient(http: $http);
+
+        $jwt = $client->fetchJwtForAccessToken('header.payload.sig');
+
+        $this->assertSame('header.payload.sig', $jwt);
+        $this->assertCount(0, $http->requests);
+    }
+
+    public function testValidateForAccessTokenUsesSameBearerOnUserinfoAndValidate(): void
+    {
+        $http = new MockPsr18Client();
+        $http->enqueue(
+            $this->psr17->createResponse(200)
+                ->withHeader('Set-Cookie', 'PHPSESSID=abc; Path=/')
+                ->withBody($this->psr17->createStream(Fixtures::read('userinfo_without_ork.json'))),
+        );
+        $http->enqueue(
+            $this->psr17->createResponse(200)->withBody(
+                $this->psr17->createStream(Fixtures::read('validate.json')),
+            ),
+        );
+
+        $client = $this->createClient(http: $http);
+        $session = $client->validateForAccessToken('header.one.sig');
+
+        $this->assertStringEndsWith('/resources/userinfo', (string) $http->requests[0]->getUri());
+        $this->assertSame('Bearer header.one.sig', $http->requests[0]->getHeaderLine('Authorization'));
+        $this->assertStringEndsWith('/resources/validate', (string) $http->requests[1]->getUri());
+        $this->assertSame('Bearer header.one.sig', $http->requests[1]->getHeaderLine('Authorization'));
+        $this->assertSame(42, $session->id);
     }
 
     public function testValidateDelegatesToResourceClient(): void

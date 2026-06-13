@@ -23,6 +23,7 @@ return function (App $app): void {
 
     $app->group('', function (RouteCollectorProxy $group) {
         $group->get('/', [HomeController::class, 'index'])->setName('home');
+        $group->get('/api/home', [HomeController::class, 'api'])->setName('api.home');
         $group->get('/login', [IdpAuthController::class, 'login'])->setName('auth.login');
         $group->get('/oauth/callback', [IdpAuthController::class, 'callback'])->setName('auth.callback');
         $group->get('/logout', [IdpAuthController::class, 'logout'])->setName('auth.logout');
