@@ -1,6 +1,6 @@
 # amtgard-idp-php-client — Implementation Plan
 
-**Status:** Phases 0–5 complete (OAuth, resources, local IAM, module reorg). **Phase 6 (Client IAM)** is planned — blocked on IDP security validation and `amtgard/ork-iam` `ClaimComposer`.  
+**Status:** Phases 0–5 complete (OAuth, resources, local IAM, module reorg). **Phase 6 (Client IAM)** shipped on `amtgard/ork-iam` **1.4.1** (PR #5; uses `ClaimBuilder` + local `OrnWireFormat` — the planned `ClaimComposer` name never shipped). Slim example improvements landed in PR #6. **ork-iam 2.x / ontology migration** is the next major workstream — see the design pack in [`agent/cursor/2.x/`](./2.x/README.md) (architecture, detailed design, milestones); do not treat the Phase 6 / ClaimComposer sections below as current blockers. 1.x API ergonomics leftovers may still be open as PR #7.  
 **Sibling server:** [amtgard-idp](https://github.com/amtgard/amtgard-bastion-idp) (`../amtgard-idp`)  
 **Sibling IAM:** [ork-iam](https://github.com/amtgard/ork-iam) (`../ork-iam`)  
 **Production IDP:** `https://idp.amtgard.com`  
