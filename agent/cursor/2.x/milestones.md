@@ -66,14 +66,16 @@ Ordered milestones for implementers. Check boxes in the implementation PR as wor
 
 ## M4 — Client IAM adapters (`src/ClientIam/**`)
 
-- [ ] `IntegratorClaim`, `IntegratorOrnRegistrar`, `IntegratorFormatRegistry`
-- [ ] `ClientIamClient` Idp detection + PHPDoc slots types
-- [ ] Validators / any remaining `OrkServices` references
-- [ ] Decide compose path (keep `OrnWireFormat::composeFullOrn` **or** `ClaimBuilder` + `fromClaim` for HTTP) — document in PR if choosing Builder
-- [ ] Confirm HTTP client still sends `provisos` / `resource` / `service_format` unchanged
-- [ ] Re-run `tests/ClientIam/*`
+- [x] `IntegratorClaim`, `IntegratorOrnRegistrar`, `IntegratorFormatRegistry`
+- [x] `ClientIamClient` Idp detection + PHPDoc slots types
+- [x] Validators / any remaining `OrkServices` references
+- [x] Decide compose path (keep `OrnWireFormat::composeFullOrn` **or** `ClaimBuilder` + `fromClaim` for HTTP) — document in PR if choosing Builder
+- [x] Confirm HTTP client still sends `provisos` / `resource` / `service_format` unchanged
+- [x] Re-run `tests/ClientIam/*`
 
 **Exit:** Client IAM unit suite green against mocked HTTP.
+
+**M4 notes:** Compose path kept `OrnWireFormat::composeFullOrn` → `ClaimFactory::createOrn` (simpler; already covered). HTTP write path still uses `OrnWireFormat::fromClaim()` → `provisos` / `resource`. Idp detection: `strcasecmp($prefix, ServiceCatalog::Idp->value) === 0`.
 
 ---
 

@@ -16,7 +16,7 @@ final class PolicyClaimValidator
     private const MAX_PART_LENGTH = 50;
 
     /**
-     * @param list<\Amtgard\IAM\OrkServices|string> $format
+     * @param list<\Amtgard\IAM\Catalog\ServiceCatalog|string> $format
      */
     public static function validateClaim(
         string $idpUserId,

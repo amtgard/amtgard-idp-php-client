@@ -19,6 +19,7 @@ use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
+#[CoversClass(ClientIamClient::class)]
 #[CoversClass(ServiceFormatValidator::class)]
 final class ClientIamExtendedTest extends TestCase
 {

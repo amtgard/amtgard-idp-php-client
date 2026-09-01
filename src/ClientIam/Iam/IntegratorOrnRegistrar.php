@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\ClientIam\Iam;
 
+use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IAM\ORN\OrnClassMap;
-use Amtgard\IAM\OrkServices;
 
 final class IntegratorOrnRegistrar
 {
     /**
-     * @param list<OrkServices|string> $format
+     * @param list<ServiceCatalog|string> $format
      */
     public static function register(string $service, array $format): void
     {
         IntegratorFormatRegistry::register($service, $format);
 
-        if ($service === OrkServices::Idp->value) {
+        if (strcasecmp($service, ServiceCatalog::Idp->value) === 0) {
             return;
         }
 
@@ -24,7 +24,7 @@ final class IntegratorOrnRegistrar
             return;
         }
 
-        if (OrkServices::tryFrom($service) !== null) {
+        if (ServiceCatalog::tryFrom($service) !== null) {
             return;
         }
 

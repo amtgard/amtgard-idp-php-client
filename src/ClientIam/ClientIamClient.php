@@ -6,8 +6,8 @@ namespace Amtgard\IdpClient\ClientIam;
 
 use Amtgard\IAM\Allowance\Claim;
 use Amtgard\IAM\Allowance\Policy;
+use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IAM\ClaimFactory;
-use Amtgard\IAM\OrkServices;
 use Amtgard\IAM\PolicyFactory;
 use Amtgard\IdpClient\ClientIam\Http\Psr18ClientIamHttpClient;
 use Amtgard\IdpClient\ClientIam\Iam\IntegratorOrnRegistrar;
@@ -31,7 +31,7 @@ final class ClientIamClient
 {
     private ?ServiceFormat $cachedServiceFormat = null;
 
-    /** @var list<\Amtgard\IAM\OrkServices|string>|null */
+    /** @var list<\Amtgard\IAM\Catalog\ServiceCatalog|string>|null */
     private ?array $cachedFormatSlots = null;
 
     public function __construct(
@@ -89,7 +89,7 @@ final class ClientIamClient
         $schema = $this->requireServiceFormatSlots();
         IntegratorOrnRegistrar::register($prefix, $schema);
 
-        if (strcasecmp($prefix, OrkServices::Idp->value) === 0) {
+        if (strcasecmp($prefix, ServiceCatalog::Idp->value) === 0) {
             OrnBootstrap::register();
         }
 
@@ -207,7 +207,7 @@ final class ClientIamClient
     }
 
     /**
-     * @return list<\Amtgard\IAM\OrkServices|string>
+     * @return list<\Amtgard\IAM\Catalog\ServiceCatalog|string>
      */
     public function serviceFormatSlots(): array
     {
@@ -241,7 +241,7 @@ final class ClientIamClient
     }
 
     /**
-     * @return list<\Amtgard\IAM\OrkServices|string>
+     * @return list<\Amtgard\IAM\Catalog\ServiceCatalog|string>
      */
     private function requireServiceFormatSlots(): array
     {
@@ -250,7 +250,7 @@ final class ClientIamClient
         }
 
         if ($this->offlineServiceFormat !== null) {
-            /** @var list<\Amtgard\IAM\OrkServices|string> $parsed */
+            /** @var list<\Amtgard\IAM\Catalog\ServiceCatalog|string> $parsed */
             $parsed = ServiceFormatParser::parseList($this->offlineServiceFormat);
             $this->cachedFormatSlots = $parsed;
 

@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Tests\ClientIam\Validation;
 
-use Amtgard\IAM\Allowance\ClaimBuilder;
+use Amtgard\IAM\Catalog\ServiceCatalog;
+use Amtgard\IAM\ClaimFactory;
 use Amtgard\IdpClient\ClientIam\Iam\IntegratorOrnRegistrar;
 use Amtgard\IdpClient\ClientIam\Model\UserMetadataRequest;
 use Amtgard\IdpClient\ClientIam\Validation\PolicyClaimValidator;
@@ -75,6 +76,75 @@ final class ClientIamValidatorsTest extends TestCase
             $this->fail('Expected ClientIamException');
         } catch (ClientIamException $exception) {
             $this->assertSame(ErrorCode::ClientIamValidation, $exception->errorCode());
+        }
+    }
+
+    public function testPolicyClaimValidatorRejectsEmptyPartsAndUserId(): void
+    {
+        try {
+            PolicyClaimValidator::validateOrnParts('', 'Editor/Write');
+            $this->fail('Expected ClientIamException');
+        } catch (ClientIamException $exception) {
+            $this->assertSame(ErrorCode::ClientIamValidation, $exception->errorCode());
+        }
+
+        try {
+            PolicyClaimValidator::validateIdpUserId('   ');
+            $this->fail('Expected ClientIamException');
+        } catch (ClientIamException $exception) {
+            $this->assertSame(ErrorCode::ClientIamValidation, $exception->errorCode());
+        }
+    }
+
+    public function testPolicyClaimValidatorAcceptsMatchingClaim(): void
+    {
+        IntegratorOrnRegistrar::register('Skbc', [ServiceCatalog::Configuration, ServiceCatalog::Kingdom]);
+        $claim = ClaimFactory::createOrn('Skbc:0:123:Editor/Write');
+
+        PolicyClaimValidator::validateClaim(
+            '550e8400-e29b-41d4-a716-446655440000',
+            $claim,
+            'Skbc',
+            [ServiceCatalog::Configuration, ServiceCatalog::Kingdom],
+        );
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function testPolicyClaimValidatorRejectsPrefixMismatch(): void
+    {
+        IntegratorOrnRegistrar::register('Other', [ServiceCatalog::Configuration]);
+        $claim = ClaimFactory::createOrn('Other:0:Editor/Write');
+
+        try {
+            PolicyClaimValidator::validateClaim(
+                '550e8400-e29b-41d4-a716-446655440000',
+                $claim,
+                'Skbc',
+                [ServiceCatalog::Configuration, ServiceCatalog::Kingdom],
+            );
+            $this->fail('Expected ClientIamException');
+        } catch (ClientIamException $exception) {
+            $this->assertSame(ErrorCode::ClientIamInvalidOrn, $exception->errorCode());
+        }
+    }
+
+    public function testPolicyClaimValidatorRejectsOrnThatFailsFactoryRebuild(): void
+    {
+        IntegratorOrnRegistrar::register('M4BadRebuild', [ServiceCatalog::Configuration, ServiceCatalog::Kingdom]);
+        $claim = ClaimFactory::createOrn('M4BadRebuild:0:123:Editor/Write');
+
+        try {
+            // Re-register with a shorter schema so recreate via ClaimFactory fails.
+            PolicyClaimValidator::validateClaim(
+                '550e8400-e29b-41d4-a716-446655440000',
+                $claim,
+                'M4BadRebuild',
+                [ServiceCatalog::Configuration],
+            );
+            $this->fail('Expected ClientIamException');
+        } catch (ClientIamException $exception) {
+            $this->assertSame(ErrorCode::ClientIamInvalidOrn, $exception->errorCode());
         }
     }
 }
