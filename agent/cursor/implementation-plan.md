@@ -1,6 +1,6 @@
 # amtgard-idp-php-client — Implementation Plan
 
-**Status:** Phases 0–6 complete on **ork-iam 1.4.1** (OAuth, resources, local IAM, module reorg, Client IAM). Remaining 1.x work is ergonomics/docs polish. **ork-iam 2.x migration** is still future — do not implement here.  
+**Status:** Phases 0–6 complete on **ork-iam 1.4.1** (OAuth, resources, local IAM, module reorg, Client IAM). 1.x API ergonomics (PR #7) merged. **ork-iam 2.x / ontology migration** is the next major workstream — see the design pack in [`agent/cursor/2.x/`](./2.x/README.md) (architecture, detailed design, milestones).
 **Sibling server:** [amtgard-idp](https://github.com/amtgard/amtgard-bastion-idp) (`../amtgard-idp`)  
 **Sibling IAM:** [ork-iam](https://github.com/amtgard/ork-iam) (`../ork-iam`)  
 **Production IDP:** `https://idp.amtgard.com`  

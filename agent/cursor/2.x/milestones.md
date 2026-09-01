@@ -1,0 +1,148 @@
+# Work milestone checklist — ork-iam 2.x migration
+
+Ordered milestones for implementers. Check boxes in the implementation PR as work lands.
+
+**Design pack:** [README](./README.md) · [architecture](./architecture.md) · [detailed design](./detailed-design.md)  
+**Upstream:** [ork-iam MIGRATION-2.0.md](https://github.com/amtgard/ork-iam/blob/main/docs/MIGRATION-2.0.md)
+
+---
+
+## M0 — Preconditions
+
+- [ ] Confirm Packagist (or private Composer) serves `amtgard/ork-iam` **≥ 2.1.0** and `amtgard/ork-iam-orn-definitions` **≥ 2.0.0**
+- [ ] Confirm sibling facts still hold (or update design notes):
+  - [ ] `ork-iam` main = 2.x (through v2.1.1+); `1.x` branch has v1.4.1
+  - [ ] `amtgard-idp` still on ork-iam 1.4.1 **or** document if it already moved
+- [ ] Resolve **PR #7** (`feature/1.x-api-ergonomics`) baseline:
+  - [ ] **Preferred:** merge #7 into `main`, then cut implementation branch from `main`
+  - [ ] **Alt:** cut `feature/ork-iam-2.x-ontology` from `feature/1.x-api-ergonomics` and note “depends on #7” in the PR
+  - [ ] **Avoid:** ontology-only PR on pre-#7 `main` if #7 will merge soon (double rename churn)
+
+**Exit:** agreed base SHA + confirmed dependency availability.
+
+---
+
+## M1 — Branch cut
+
+- [ ] Create branch `feature/ork-iam-2.x-ontology` (or equivalent) from chosen base
+- [ ] Open draft PR early with link to `agent/cursor/2.x/` and empty checklist copy of § acceptance criteria
+- [ ] Do **not** change sibling repos
+
+**Exit:** draft PR URL exists; working tree ready for dep bump.
+
+---
+
+## M2 — Dependency bump
+
+- [ ] Update `composer.json`:
+  - [ ] `"amtgard/ork-iam": "^2.1"` (or exact `2.1.1` if release train requires)
+  - [ ] `"amtgard/ork-iam-orn-definitions": "^2.0"`
+- [ ] Run `composer update amtgard/ork-iam amtgard/ork-iam-orn-definitions` (or full update if lock requires)
+- [ ] Confirm lockfile pins resolve to 2.x line (not 1.4.1)
+- [ ] Expect compile failures — that is the signal for M3
+
+**Exit:** lockfile on 2.x; CI may be red until adapters land.
+
+---
+
+## M3 — Core IAM adapters (`src/Iam/**`)
+
+- [ ] `IdpFormat` / `IdpClaim` / `IdpRequirement`: `ornSegmentSchema()` + `ServiceCatalog`
+- [ ] `OrnBootstrap`: `ServiceCatalog::Idp`
+- [ ] `ServiceFormatParser`: `toCatalogEntry()`, catalog types in PHPDoc
+- [ ] `OrnWireFormat`: typehints only; **no** wire-string behavior change
+- [ ] Re-run focused tests: `tests/Iam/*`
+
+**Exit:** local evaluation path compiles; OrnWireFormat fixtures unchanged.
+
+---
+
+## M4 — Client IAM adapters (`src/ClientIam/**`)
+
+- [ ] `IntegratorClaim`, `IntegratorOrnRegistrar`, `IntegratorFormatRegistry`
+- [ ] `ClientIamClient` Idp detection + PHPDoc slots types
+- [ ] Validators / any remaining `OrkServices` references
+- [ ] Decide compose path (keep `OrnWireFormat::composeFullOrn` **or** `ClaimBuilder` + `fromClaim` for HTTP) — document in PR if choosing Builder
+- [ ] Confirm HTTP client still sends `provisos` / `resource` / `service_format` unchanged
+- [ ] Re-run `tests/ClientIam/*`
+
+**Exit:** Client IAM unit suite green against mocked HTTP.
+
+---
+
+## M5 — Isolation & static analysis
+
+- [ ] Grep: no `OrkServices`, `toOrkServices`, `getServiceIdentifier`, or claim `serviceFormat()` overrides left in `src/` / `tests/`
+- [ ] Grep: `Amtgard\IAM` imports only under allowed paths (+ `IdpClient` Policy/Requirement)
+- [ ] `composer stan` green
+- [ ] `composer cs` green if required by CI
+
+**Exit:** stan + isolation checks pass.
+
+---
+
+## M6 — Full unit tests
+
+- [ ] `composer test` green
+- [ ] Spot-check golden ORN ↔ `OrnWireParts` cases from `OrnWireFormatTest`
+- [ ] If coverage gates exist, ensure no unexplained drop
+
+**Exit:** unit CI green.
+
+---
+
+## M7 — README / examples / changelog notes
+
+- [ ] README: document major dep bump; link upstream MIGRATION-2.0 for apps using IAM types directly
+- [ ] README: state wire compatibility with IDP still on 1.4.1
+- [ ] Update slim-docker / examples only where they reference 1.x type names
+- [ ] Add release-note bullet list for the eventual package tag
+
+**Exit:** consumer-facing docs accurate for 2.x.
+
+---
+
+## M8 — Optional live checks
+
+- [ ] `IDP_INTEGRATION=1` against production/staging IDP (OAuth + resources) if credentials available
+- [ ] Confidential-client Client IAM smoke (service-format get + optional claim round-trip) if secrets available
+- [ ] Slim docker example login path still works (`integration:slim` optional)
+
+**Exit:** no wire regressions observed, or gaps explicitly waived in PR.
+
+---
+
+## M9 — PR ready for review / merge
+
+- [ ] Implementation PR description includes:
+  - [ ] Link to this design pack
+  - [ ] Link to upstream MIGRATION-2.0
+  - [ ] Base branch note (#7 merged or depended)
+  - [ ] Checklist copy of [detailed-design §8 acceptance criteria](./detailed-design.md#8-acceptance-criteria-implementation-complete-when)
+- [ ] No unrelated refactors
+- [ ] Reviewers: owner + anyone maintaining IDP Client IAM consumers
+- [ ] Merge when CI green and acceptance criteria checked
+- [ ] Tag / Packagist release process per repo norms (separate from merge if needed)
+
+**Exit:** merged to `main` (or release branch); release readiness documented.
+
+---
+
+## Suggested calendar order (summary)
+
+```
+M0 preconditions → M1 branch → M2 composer bump → M3 Iam adapters
+  → M4 ClientIam adapters → M5 stan/isolation → M6 unit tests
+  → M7 docs/examples → M8 optional live → M9 merge/release
+```
+
+Typical effort: **1–2 focused days** if #7 is settled and Packagist tags exist; longer if dependency publishing or Resource API baseline is blocked.
+
+---
+
+## Out of order / do not
+
+- [ ] ~~Implement migration inside the design-docs PR~~
+- [ ] ~~Modify `../ork-iam`, `../ork-iam-orn-definitions`, or `../amtgard-idp` for this client bump~~
+- [ ] ~~Change IDP wire field names~~
+- [ ] ~~Force-push shared branches~~
