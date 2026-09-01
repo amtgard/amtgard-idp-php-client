@@ -143,13 +143,13 @@ Ordered milestones for implementers. Check boxes in the implementation PR as wor
   - [x] Checklist copy of [detailed-design §8 acceptance criteria](./detailed-design.md#8-acceptance-criteria-implementation-complete-when)
 - [x] No unrelated refactors
 - [x] Reviewers: owner + anyone maintaining IDP Client IAM consumers
-- [ ] Merge when CI green and acceptance criteria checked
-- [ ] Tag / Packagist release process per repo norms (separate from merge if needed)
+- [x] Merge when CI green and acceptance criteria checked (PR #9 → `main` @ `f2d7b0b`)
+- [ ] Tag **`v2.0.0`** on `main` after release metadata PR merge; then GitHub Release + Packagist update
 
 **Exit:** merged to `main` (or release branch); release readiness documented.
 
 **M9 notes (2026-08-31):**
-- PR: https://github.com/amtgard/amtgard-idp-php-client/pull/9 — marked ready for review (undraft). Head `feature/ork-iam-2.x-ontology` fast-forwarded to M9 tip so M0–M9 land in one PR.
+- PR: https://github.com/amtgard/amtgard-idp-php-client/pull/9 — merged to `main`.
 - No unrelated refactors in the stack (adapters, deps, isolation/stan, tests, docs, live-check notes only).
 - Reviewers: package owner + IDP Client IAM consumer maintainers.
 - **Left for human:** merge when CI green; live OAuth/Client-IAM happy-path creds if desired; tag / Packagist after merge. Infection: **N/A**.

@@ -2,7 +2,13 @@
 
 All notable changes to `amtgard/idp-php-client` are documented here.
 
-## Unreleased (next package tag — ork-iam 2.x ontology)
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project aligns major releases with the **ork-iam 2.x** dependency line where applicable.
+
+## Unreleased
+
+_No changes yet._
+
+## [2.0.0] - 2026-09-01
 
 ### Changed
 
@@ -25,3 +31,6 @@ All notable changes to `amtgard/idp-php-client` are documented here.
 | `getServiceIdentifier()` | `getPrefix()` |
 
 Client IAM HTTP method names (`getServiceFormat`, `createServiceFormat`, …) stay — they mirror IDP routes, not ork-iam type names.
+
+[2.0.0]: https://github.com/amtgard/amtgard-idp-php-client/compare/v1.4.1...v2.0.0
+[Unreleased]: https://github.com/amtgard/amtgard-idp-php-client/compare/v2.0.0...HEAD
