@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Tests\Iam;
 
+use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IAM\ClaimFactory;
 use Amtgard\IAM\Definitions\ORN\OrkClaim;
-use Amtgard\IAM\OrkServices;
-use Amtgard\IdpClient\ClientIam\Iam\IntegratorOrnRegistrar;
+use Amtgard\IAM\ORN\OrnSegmentLabel;
+use Amtgard\IdpClient\Iam\OrnBootstrap;
 use Amtgard\IdpClient\Iam\OrnWireFormat;
 use Amtgard\IdpClient\Iam\OrnWireParts;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -17,16 +18,9 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(OrnWireParts::class)]
 final class OrnWireFormatTest extends TestCase
 {
-    private const CUSTOM = 'WireFormatExample';
-
     protected function setUp(): void
     {
-        IntegratorOrnRegistrar::register(self::CUSTOM, ['tenant-id', OrkServices::Kingdom]);
-    }
-
-    protected function tearDown(): void
-    {
-        IntegratorOrnRegistrar::reset();
+        OrnBootstrap::register();
     }
 
     public function testDecomposeIdpFixture(): void
@@ -41,30 +35,25 @@ final class OrnWireFormatTest extends TestCase
 
     public function testRoundTripViaClaim(): void
     {
-        IntegratorOrnRegistrar::register('Skbc', [
-            OrkServices::Configuration,
-            OrkServices::Game,
-            OrkServices::Kingdom,
-            OrkServices::Park,
-        ]);
+        $schema = [
+            ServiceCatalog::Configuration,
+            ServiceCatalog::Game,
+            ServiceCatalog::Kingdom,
+            ServiceCatalog::Park,
+        ];
 
         $orn = OrnWireFormat::composeFullOrn(
-            'Skbc',
-            [
-                OrkServices::Configuration,
-                OrkServices::Game,
-                OrkServices::Kingdom,
-                OrkServices::Park,
-            ],
+            'Idp',
+            $schema,
             ['Configuration' => 0],
-            'Officer/Approve',
+            'IDP/EditClient',
         );
         $claim = ClaimFactory::createOrn($orn);
 
         $parts = OrnWireFormat::fromClaim($claim);
 
         $this->assertSame(':0::::', $parts->provisos);
-        $this->assertSame('Officer/Approve', $parts->resource);
+        $this->assertSame('IDP/EditClient', $parts->resource);
         $this->assertSame($claim->buildOrn(), $parts->fullOrn());
     }
 
@@ -78,20 +67,58 @@ final class OrnWireFormatTest extends TestCase
 
     public function testComposeFullOrnRejectsUnknownSegmentKeys(): void
     {
-        IntegratorOrnRegistrar::register('Skbc', [OrkServices::Kingdom]);
-
         $this->expectException(\InvalidArgumentException::class);
         OrnWireFormat::composeFullOrn(
-            'Skbc',
-            [OrkServices::Kingdom],
+            'Idp',
+            [ServiceCatalog::Kingdom],
             ['Unknown' => 1],
-            'Editor/Write',
+            'IDP/EditClient',
         );
+    }
+
+    public function testComposeFullOrnAcceptsOrnSegmentLabelAndNullishValues(): void
+    {
+        $orn = OrnWireFormat::composeFullOrn(
+            'Idp',
+            [
+                OrnSegmentLabel::from(ServiceCatalog::Configuration),
+                ServiceCatalog::Game,
+                'Kingdom',
+                ServiceCatalog::Park,
+            ],
+            [
+                'Configuration' => 1,
+                'Game' => null,
+                'Kingdom' => '',
+                'Park' => 9,
+            ],
+            'IDP/EditIdentity',
+        );
+
+        $this->assertSame('Idp:1:::9:IDP/EditIdentity', $orn);
+    }
+
+    public function testDecomposeRejectsMissingColon(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        OrnWireFormat::decompose('NoColon', 1);
+    }
+
+    public function testDecomposeRejectsMissingSegments(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        OrnWireFormat::decompose('Idp:0:IDP/EditClient', 4);
+    }
+
+    public function testDecomposeRejectsEmptyResource(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        OrnWireFormat::decompose('Idp:0::::', 4);
     }
 
     public function testFromClaimWorksWithBuiltinOrkClaim(): void
     {
-        $claim = new OrkClaim(OrkServices::ORK, 'ORK:1:7:8:9:10:ORK/AddKingdom');
+        $claim = new OrkClaim(ServiceCatalog::ORK, 'ORK:1:7:8:9:10:ORK/AddKingdom');
         $parts = OrnWireFormat::fromClaim($claim);
 
         $this->assertSame('ORK', $parts->prefix);

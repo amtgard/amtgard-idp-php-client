@@ -8,12 +8,12 @@ use Amtgard\IAM\Requirement\Requirement;
 
 final class IdpRequirement extends Requirement
 {
-    protected function serviceFormat(): array
+    public function ornSegmentSchema(): array
     {
-        return IdpFormat::serviceFormat();
+        return IdpFormat::ornSegmentSchema();
     }
 
-    protected function getResourceMap(string $resource = null): array
+    protected function getResourceMap(?string $resource = null): array
     {
         return IdpFormat::getValidResourceMap($resource);
     }

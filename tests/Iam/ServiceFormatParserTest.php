@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Tests\Iam;
 
-use Amtgard\IAM\OrkServices;
+use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IdpClient\Iam\ServiceFormatParser;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -17,18 +17,24 @@ final class ServiceFormatParserTest extends TestCase
         $format = ServiceFormatParser::defaultFormat();
 
         $this->assertSame([
-            OrkServices::Configuration,
-            OrkServices::Game,
-            OrkServices::Kingdom,
-            OrkServices::Park,
+            ServiceCatalog::Configuration,
+            ServiceCatalog::Game,
+            ServiceCatalog::Kingdom,
+            ServiceCatalog::Park,
         ], $format);
+    }
+
+    public function testParseNullOrBlankReturnsDefault(): void
+    {
+        $this->assertSame(ServiceFormatParser::defaultFormat(), ServiceFormatParser::parse(null));
+        $this->assertSame(ServiceFormatParser::defaultFormat(), ServiceFormatParser::parse('   '));
     }
 
     public function testParseJsonArray(): void
     {
         $format = ServiceFormatParser::parse('["Configuration","Kingdom"]');
 
-        $this->assertSame([OrkServices::Configuration, OrkServices::Kingdom], $format);
+        $this->assertSame([ServiceCatalog::Configuration, ServiceCatalog::Kingdom], $format);
         $this->assertSame(['Configuration', 'Kingdom'], ServiceFormatParser::slotNames($format));
     }
 
@@ -36,7 +42,8 @@ final class ServiceFormatParserTest extends TestCase
     {
         $format = ServiceFormatParser::parseList(['tenant-id', 'Kingdom']);
 
-        $this->assertSame(['tenant-id', OrkServices::Kingdom], $format);
+        $this->assertSame(['tenant-id', ServiceCatalog::Kingdom], $format);
+        $this->assertSame(['tenant-id', 'Kingdom'], ServiceFormatParser::slotNames($format));
     }
 
     public function testParseRejectsNonArrayJson(): void
@@ -49,5 +56,17 @@ final class ServiceFormatParserTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
         ServiceFormatParser::parse('["Configuration",""]');
+    }
+
+    public function testParseRejectsNonStringEntries(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        ServiceFormatParser::parse('[1]');
+    }
+
+    public function testParseRejectsEmptyArray(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        ServiceFormatParser::parse('[]');
     }
 }

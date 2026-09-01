@@ -54,11 +54,11 @@ Ordered milestones for implementers. Check boxes in the implementation PR as wor
 
 ## M3 — Core IAM adapters (`src/Iam/**`)
 
-- [ ] `IdpFormat` / `IdpClaim` / `IdpRequirement`: `ornSegmentSchema()` + `ServiceCatalog`
-- [ ] `OrnBootstrap`: `ServiceCatalog::Idp`
-- [ ] `ServiceFormatParser`: `toCatalogEntry()`, catalog types in PHPDoc
-- [ ] `OrnWireFormat`: typehints only; **no** wire-string behavior change
-- [ ] Re-run focused tests: `tests/Iam/*`
+- [x] `IdpFormat` / `IdpClaim` / `IdpRequirement`: `ornSegmentSchema()` + `ServiceCatalog`
+- [x] `OrnBootstrap`: `ServiceCatalog::Idp`
+- [x] `ServiceFormatParser`: `toCatalogEntry()`, catalog types in PHPDoc
+- [x] `OrnWireFormat`: typehints only; **no** wire-string behavior change
+- [x] Re-run focused tests: `tests/Iam/*`
 
 **Exit:** local evaluation path compiles; OrnWireFormat fixtures unchanged.
 

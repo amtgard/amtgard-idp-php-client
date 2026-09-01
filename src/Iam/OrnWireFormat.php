@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Amtgard\IdpClient\Iam;
 
 use Amtgard\IAM\Allowance\Claim;
+use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IAM\ORN\OrnSegmentLabel;
-use Amtgard\IAM\OrkServices;
 
 final class OrnWireFormat
 {
     /**
-     * @param list<OrnSegmentLabel|OrkServices|string> $schema
+     * @param list<OrnSegmentLabel|ServiceCatalog|string> $schema
      * @param array<string, int|string|null> $segments
      */
     public static function composeFullOrn(
@@ -64,7 +64,7 @@ final class OrnWireFormat
     }
 
     /**
-     * @param list<OrnSegmentLabel|OrkServices|string> $schema
+     * @param list<OrnSegmentLabel|ServiceCatalog|string> $schema
      * @param array<string, int|string|null> $segments
      *
      * @return list<string>
@@ -87,7 +87,7 @@ final class OrnWireFormat
     }
 
     /**
-     * @param list<OrnSegmentLabel|OrkServices|string> $schema
+     * @param list<OrnSegmentLabel|ServiceCatalog|string> $schema
      * @param array<string, int|string|null> $segments
      */
     private static function assertKnownSegmentKeys(array $schema, array $segments): void

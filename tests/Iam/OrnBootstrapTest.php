@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Tests\Iam;
 
+use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IAM\ORN\OrnClassMap;
-use Amtgard\IAM\OrkServices;
 use Amtgard\IdpClient\Iam\Orn\IdpClaim;
 use Amtgard\IdpClient\Iam\Orn\IdpRequirement;
 use Amtgard\IdpClient\Iam\OrnBootstrap;
@@ -32,22 +32,22 @@ final class OrnBootstrapTest extends TestCase
     {
         OrnBootstrap::register();
 
-        $this->assertTrue(OrnClassMap::isRegistered(OrkServices::Idp));
-        $this->assertTrue(OrnClassMap::isRegistered(OrkServices::Idp, asRequirement: true));
-        $this->assertSame(IdpClaim::class, OrnClassMap::getClaimClass(OrkServices::Idp));
-        $this->assertSame(IdpRequirement::class, OrnClassMap::getRequirementClass(OrkServices::Idp));
+        $this->assertTrue(OrnClassMap::isRegistered(ServiceCatalog::Idp));
+        $this->assertTrue(OrnClassMap::isRegistered(ServiceCatalog::Idp, asRequirement: true));
+        $this->assertSame(IdpClaim::class, OrnClassMap::getClaimClass(ServiceCatalog::Idp));
+        $this->assertSame(IdpRequirement::class, OrnClassMap::getRequirementClass(ServiceCatalog::Idp));
     }
 
     public function testRegisterIsIdempotentWhenOrnClassMapAlreadyHasIdp(): void
     {
-        OrnClassMap::registerClaim(OrkServices::Idp, IdpClaim::class);
-        OrnClassMap::registerRequirement(OrkServices::Idp, IdpRequirement::class);
+        OrnClassMap::registerClaim(ServiceCatalog::Idp, IdpClaim::class);
+        OrnClassMap::registerRequirement(ServiceCatalog::Idp, IdpRequirement::class);
 
         OrnBootstrap::register();
         OrnBootstrap::register();
 
-        $this->assertSame(IdpClaim::class, OrnClassMap::getClaimClass(OrkServices::Idp));
-        $this->assertSame(IdpRequirement::class, OrnClassMap::getRequirementClass(OrkServices::Idp));
+        $this->assertSame(IdpClaim::class, OrnClassMap::getClaimClass(ServiceCatalog::Idp));
+        $this->assertSame(IdpRequirement::class, OrnClassMap::getRequirementClass(ServiceCatalog::Idp));
     }
 
     public function testRegisterReturnsEarlyWhenAlreadyBootstrapped(): void
@@ -58,7 +58,7 @@ final class OrnBootstrapTest extends TestCase
 
         OrnBootstrap::register();
 
-        $this->assertFalse(OrnClassMap::isRegistered(OrkServices::Idp));
+        $this->assertFalse(OrnClassMap::isRegistered(ServiceCatalog::Idp));
     }
 
     public function testResetAllowsRegisterToRunAgain(): void
@@ -67,6 +67,6 @@ final class OrnBootstrapTest extends TestCase
         OrnBootstrap::reset();
         OrnBootstrap::register();
 
-        $this->assertTrue(OrnClassMap::isRegistered(OrkServices::Idp));
+        $this->assertTrue(OrnClassMap::isRegistered(ServiceCatalog::Idp));
     }
 }
