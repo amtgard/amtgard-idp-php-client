@@ -31,9 +31,9 @@ Ordered milestones for implementers. Check boxes in the implementation PR as wor
 
 ## M1 — Branch cut
 
-- [ ] Create branch `feature/ork-iam-2.x-ontology` (or equivalent) from chosen base
-- [ ] Open draft PR early with link to `agent/cursor/2.x/` and empty checklist copy of § acceptance criteria
-- [ ] Do **not** change sibling repos
+- [x] Create branch `feature/ork-iam-2.x-ontology` (or equivalent) from chosen base
+- [x] Open draft PR early with link to `agent/cursor/2.x/` and empty checklist copy of § acceptance criteria
+- [x] Do **not** change sibling repos
 
 **Exit:** draft PR URL exists; working tree ready for dep bump.
 
