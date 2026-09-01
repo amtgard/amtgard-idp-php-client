@@ -94,11 +94,13 @@ Ordered milestones for implementers. Check boxes in the implementation PR as wor
 
 ## M6 — Full unit tests
 
-- [ ] `composer test` green
-- [ ] Spot-check golden ORN ↔ `OrnWireParts` cases from `OrnWireFormatTest`
-- [ ] If coverage gates exist, ensure no unexplained drop
+- [x] `composer test` green
+- [x] Spot-check golden ORN ↔ `OrnWireParts` cases from `OrnWireFormatTest`
+- [x] If coverage gates exist, ensure no unexplained drop
 
 **Exit:** unit CI green.
+
+**M6 notes:** `composer test` OK — 224 tests, 376 assertions (23 skipped integration). OrnWireFormat goldens intact (`Skbc:0::::Officer/Approve`, compose `Idp:1:::9:IDP/EditIdentity`, claim round-trip `:0::::` / `IDP/EditClient`). No coverage gate in CI; overall lines **85.30%** (1149/1347). Migration-touched `src/Iam/**` ≥97% (OrnWireFormat 97%); ClientIam Integrators/PolicyClaim 100%, ClientIamClient 96%, UserMetadataValidator 100%. ServiceFormatValidator 67% — defensive catch around `OrnSegmentLabel::from` unreachable under ork-iam 2.x (custom slot names allowed). 2 PHPUnit deprecations from vendor `ork-iam` nullable params — out of scope. Infection: N/A.
 
 ---
 
