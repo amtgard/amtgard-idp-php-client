@@ -14,9 +14,13 @@ Apps can wire config manually (`IdpClientEnvironment`) or use the on-rails facto
 
 ## Installation
 
+Requires **PHP 8.3+**. Current release line: **2.x** (`ork-iam` `^2.1`).
+
 ```bash
-composer require amtgard/idp-php-client guzzlehttp/guzzle
+composer require amtgard/idp-php-client:^2.0 guzzlehttp/guzzle
 ```
+
+Apps still on the 1.x-era client (`ork-iam` `1.4.1`) should pin `amtgard/idp-php-client:^1.4` until migrated — see [CHANGELOG.md](./CHANGELOG.md).
 
 Slim apps should also install Slim to use the bundled auth controller:
 
