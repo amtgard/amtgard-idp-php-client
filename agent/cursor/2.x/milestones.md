@@ -9,16 +9,23 @@ Ordered milestones for implementers. Check boxes in the implementation PR as wor
 
 ## M0 — Preconditions
 
-- [ ] Confirm Packagist (or private Composer) serves `amtgard/ork-iam` **≥ 2.1.0** and `amtgard/ork-iam-orn-definitions` **≥ 2.0.0**
-- [ ] Confirm sibling facts still hold (or update design notes):
-  - [ ] `ork-iam` main = 2.x (through v2.1.1+); `1.x` branch has v1.4.1
-  - [ ] `amtgard-idp` still on ork-iam 1.4.1 **or** document if it already moved
-- [ ] Resolve **PR #7** (`feature/1.x-api-ergonomics`) baseline:
-  - [ ] **Preferred:** merge #7 into `main`, then cut implementation branch from `main`
+- [x] Confirm Packagist (or private Composer) serves `amtgard/ork-iam` **≥ 2.1.0** and `amtgard/ork-iam-orn-definitions` **≥ 2.0.0**
+- [x] Confirm sibling facts still hold (or update design notes):
+  - [x] `ork-iam` main = 2.x (through v2.1.1+); `1.x` branch has v1.4.1
+  - [x] `amtgard-idp` still on ork-iam 1.4.1 **or** document if it already moved
+- [x] Resolve **PR #7** (`feature/1.x-api-ergonomics`) baseline:
+  - [x] **Preferred:** merge #7 into `main`, then cut implementation branch from `main`
   - [ ] **Alt:** cut `feature/ork-iam-2.x-ontology` from `feature/1.x-api-ergonomics` and note “depends on #7” in the PR
   - [ ] **Avoid:** ontology-only PR on pre-#7 `main` if #7 will merge soon (double rename churn)
 
 **Exit:** agreed base SHA + confirmed dependency availability.
+
+**M0 notes (2026-08-31):**
+- Packagist: `amtgard/ork-iam` through **v2.1.1**; `amtgard/ork-iam-orn-definitions` through **v2.0.0**.
+- Sibling: `ork-iam` `main` @ v2.1.1; `1.x` retains v1.4.1. `amtgard-idp` still pins `ork-iam` **v1.4.1** + orn-definitions `^0.9`.
+- PR #7 merged into `main` (`2c9519c`). Stack base for M1+: post-M0 tip on `chore/ork-iam-2.x-m0-preconditions`.
+- Design pack applied onto post-#7 `main` for checklist continuity.
+
 
 ---
 
