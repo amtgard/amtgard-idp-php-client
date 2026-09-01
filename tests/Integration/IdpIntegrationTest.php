@@ -113,7 +113,7 @@ final class IdpIntegrationTest extends TestCase
         $client = $this->createClient();
         $accessToken = $this->requireAccessToken();
 
-        $profile = $client->fetchUserProfileForAccessToken($accessToken);
+        $profile = $client->fetchUserProfile($accessToken);
 
         $this->assertGreaterThan(0, $profile->id);
         $this->assertNotSame('', $profile->email);
@@ -125,10 +125,10 @@ final class IdpIntegrationTest extends TestCase
         $client = $this->createClient();
         $accessToken = $this->requireAccessToken();
 
-        $profile = $client->fetchUserProfileForAccessToken($accessToken);
+        $profile = $client->fetchUserProfile($accessToken);
 
         try {
-            $validated = $client->validate($profile->jwt);
+            $validated = $client->validateWithAuthorizationJwt($profile->jwt);
         } catch (ResourceException $exception) {
             if ($exception->errorCode() === ErrorCode::ResourceUnauthorized) {
                 $this->markTestSkipped(
@@ -150,7 +150,7 @@ final class IdpIntegrationTest extends TestCase
         $client = $this->createClient();
         $accessToken = $this->requireAccessToken();
 
-        $client->fetchUserProfileForAccessToken($accessToken);
+        $client->fetchUserProfile($accessToken);
         $jwt = $client->fetchJwt($accessToken);
 
         $this->assertNotSame('', $jwt);

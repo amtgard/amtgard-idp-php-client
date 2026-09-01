@@ -12,6 +12,8 @@ use Amtgard\IdpClient\OAuth\InMemoryOAuthFlowStateStore;
 use Amtgard\IdpClient\OAuth\OAuthFlowState;
 use Amtgard\IdpClient\OAuth\Pkce;
 use Amtgard\IdpClient\OAuth\TokenSet;
+use Amtgard\IdpClient\Resource\AuthenticatedSession;
+use Amtgard\IdpClient\Resource\UserProfile;
 use Amtgard\IdpClient\Tests\Support\Fixtures;
 use Amtgard\IdpClient\Tests\Support\MockPsr18Client;
 use Amtgard\IdpClient\Tests\Support\TestEnvironment;
@@ -141,7 +143,7 @@ final class IdpClientTest extends TestCase
         $this->assertSame('eyJ.noork.jwt', $session->profile->jwt);
     }
 
-    public function testFetchUserProfileForAccessTokenFallsBackWhenJwtElevationIsRejected(): void
+    public function testFetchUserProfileFallsBackWhenJwtElevationIsRejected(): void
     {
         $http = new MockPsr18Client();
         $http->enqueue($this->psr17->createResponse(401));
@@ -152,7 +154,7 @@ final class IdpClientTest extends TestCase
         );
 
         $client = $this->createClient(http: $http);
-        $profile = $client->fetchUserProfileForAccessToken('oauth-access-token');
+        $profile = $client->fetchUserProfile('oauth-access-token');
 
         $this->assertSame(42, $profile->id);
         $this->assertStringEndsWith('/resources/userinfo', (string) $http->requests[1]->getUri());
@@ -343,18 +345,18 @@ final class IdpClientTest extends TestCase
         $client->refresh(new TokenSet('access-only'));
     }
 
-    public function testFetchJwtForAccessTokenReturnsJwsAccessTokenWithoutHttpCall(): void
+    public function testFetchJwtReturnsJwsAccessTokenWithoutHttpCall(): void
     {
         $http = new MockPsr18Client();
         $client = $this->createClient(http: $http);
 
-        $jwt = $client->fetchJwtForAccessToken('header.payload.sig');
+        $jwt = $client->fetchJwt('header.payload.sig');
 
         $this->assertSame('header.payload.sig', $jwt);
         $this->assertCount(0, $http->requests);
     }
 
-    public function testValidateForAccessTokenUsesSameBearerOnUserinfoAndValidate(): void
+    public function testValidateUsesSameBearerOnUserinfoAndValidate(): void
     {
         $http = new MockPsr18Client();
         $http->enqueue(
@@ -369,7 +371,7 @@ final class IdpClientTest extends TestCase
         );
 
         $client = $this->createClient(http: $http);
-        $session = $client->validateForAccessToken('header.one.sig');
+        $session = $client->validate('header.one.sig');
 
         $this->assertStringEndsWith('/resources/userinfo', (string) $http->requests[0]->getUri());
         $this->assertSame('Bearer header.one.sig', $http->requests[0]->getHeaderLine('Authorization'));
@@ -378,7 +380,7 @@ final class IdpClientTest extends TestCase
         $this->assertSame(42, $session->id);
     }
 
-    public function testValidateDelegatesToResourceClient(): void
+    public function testValidateWithAuthorizationJwtDelegatesToResourceClient(): void
     {
         $http = new MockPsr18Client();
         $http->enqueue(
@@ -388,7 +390,7 @@ final class IdpClientTest extends TestCase
         );
 
         $client = $this->createClient(http: $http);
-        $session = $client->validate('access-token');
+        $session = $client->validateWithAuthorizationJwt('access-token');
 
         $this->assertStringEndsWith('/resources/validate', (string) $http->requests[0]->getUri());
         $this->assertSame(1, $session->id);
@@ -410,16 +412,38 @@ final class IdpClientTest extends TestCase
         }
     }
 
-    public function testFetchUserProfileUsesResourceClient(): void
+    public function testFetchUserProfileWithAuthorizationJwtUsesResourceClient(): void
     {
         $http = new MockPsr18Client();
         $json = Fixtures::read('userinfo_with_ork.json');
         $http->enqueue($this->psr17->createResponse(200)->withBody($this->psr17->createStream($json)));
 
         $client = $this->createClient(http: $http);
-        $profile = $client->fetchUserProfile('access');
+        $profile = $client->fetchUserProfileWithAuthorizationJwt('access');
 
         $this->assertSame('player@amtgard.com', $profile->email);
+    }
+
+    public function testFetchUserProfileForSessionUpdatesCookiesAndProfile(): void
+    {
+        $http = new MockPsr18Client();
+        $http->enqueue(
+            $this->psr17->createResponse(200)
+                ->withHeader('Set-Cookie', 'PHPSESSID=from-idp; Path=/')
+                ->withBody($this->psr17->createStream(Fixtures::read('userinfo_without_ork.json'))),
+        );
+
+        $client = $this->createClient(http: $http);
+        $session = new AuthenticatedSession(
+            new TokenSet('header.one.sig'),
+            new UserProfile(1, 'old@example.com', 'old.jwt'),
+        );
+
+        [$profile, $updated] = $client->fetchUserProfileForSession($session);
+
+        $this->assertSame(42, $profile->id);
+        $this->assertSame(42, $updated->profile->id);
+        $this->assertSame('PHPSESSID=from-idp', $updated->idpCookies);
     }
 
     /**

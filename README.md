@@ -138,9 +138,14 @@ For app-specific env layout, wrap or replace `EnvIdpClientEnvironment` with your
 | `beginAuthorization` | `?string $returnTo = null` | `ResponseInterface` (302) | Start OAuth: generate PKCE verifier/challenge and `state`, store flow state, redirect browser to IDP authorize URL. Optional `$returnTo` is stored and restored after callback. |
 | `completeAuthorization` | `ServerRequestInterface $callbackRequest` | `AuthorizationResult` | Finish OAuth on `/oauth/callback`: validate `state`, exchange authorization `code` for tokens. Does **not** fetch user profile. |
 | `completeLogin` | `ServerRequestInterface $callbackRequest` | `AuthenticatedSession` | Convenience wrapper: `completeAuthorization()` + `fetchUserProfile()`. Use on callback to get tokens and profile in one call. |
-| `fetchUserProfile` | `string $accessToken` | `UserProfile` | `GET /resources/userinfo` — full profile including optional ORK link data and embedded JWT. |
-| `validate` | `string $accessToken` | `ValidatedSession` | `GET /resources/validate` — lightweight session heartbeat (`id`, `email`, `jwt`). |
-| `fetchJwt` | `string $accessToken` | `string` | `GET /resources/jwt` — fresh authorization JWT string (server may cache for validate/pubsub). |
+| `fetchUserProfile` | `string $accessToken`, `?IdpHttpCookies $cookies = null` | `UserProfile` | `GET /resources/userinfo` — elevates opaque tokens when needed; full profile including optional ORK link data and embedded JWT. |
+| `validate` | `string $accessToken`, `?IdpHttpCookies $cookies = null` | `ValidatedSession` | `GET /resources/validate` — lightweight session heartbeat (`id`, `email`, `jwt`). Replays IDP cookies; warms userinfo first so the validate challenge matches. |
+| `fetchJwt` | `string $accessToken`, `?IdpHttpCookies $cookies = null` | `string` | Authorization JWT for the access token (elevates opaque tokens via `GET /resources/jwt`; returns JWT-shaped access tokens as-is). |
+| `fetchUserProfileForSession` | `AuthenticatedSession` | `array{UserProfile, AuthenticatedSession}` | Same as `fetchUserProfile` using the session token + cookies; returns updated session. |
+| `validateForSession` | `AuthenticatedSession` | `array{ValidatedSession, AuthenticatedSession}` | Same as `validate` using the session token + cookies; returns updated session. |
+| `fetchJwtForSession` | `AuthenticatedSession` | `array{string, AuthenticatedSession}` | Same as `fetchJwt` using the session token + cookies; returns updated session. |
+| `fetchUserProfileWithAuthorizationJwt` | `string $authorizationJwt`, `?IdpHttpCookies $cookies = null` | `UserProfile` | Advanced: call userinfo with an authorization JWT directly (prefer `fetchUserProfile`). |
+| `validateWithAuthorizationJwt` | `string $authorizationJwt`, `?IdpHttpCookies $cookies = null` | `ValidatedSession` | Advanced: call validate with an authorization JWT directly (prefer `validate`). |
 | `checkAuthorization` | `Policy $policy`, `Requirement $requirement` | `AuthorizationCheck` | Evaluate whether IAM policy claims satisfy a requirement. Uses **local** `amtgard/ork-iam` (`Policy::isAuthorized`) — same logic as the IDP `/api/is_authorized` endpoint, no HTTP round-trip. |
 | `policyFromOrns` | `list<string> $orns` | `Amtgard\IAM\Allowance\Policy` | Parse JWT-style policy claim strings into a `Policy` object. |
 | `requirementFromOrn` | `string $orn` | `Amtgard\IAM\Requirement\Requirement` | Parse a requirement ORN string into a `Requirement` object. |
@@ -181,7 +186,7 @@ For app-specific env layout, wrap or replace `EnvIdpClientEnvironment` with your
 |------|----------------|
 | `TokenSet` | `accessToken()`, `refreshToken()`, `expiresIn()`, raw token array |
 | `AuthorizationResult` | `tokens`, `?returnTo` |
-| `AuthenticatedSession` | `tokens`, `profile` (`UserProfile`), `?returnTo` |
+| `AuthenticatedSession` | `tokens`, `profile` (`UserProfile`), `?returnTo`, `?idpCookies` (Cookie header to replay on later resource calls, especially `validate`) |
 | `UserProfile` | `id`, `email`, `jwt`, `?orkProfile` |
 | `OrkProfile` | ORK link fields when user has linked an ORK account |
 | `ValidatedSession` | `id`, `email`, `jwt` |
@@ -204,19 +209,30 @@ Custom integrator `iam_service` namespaces (Client IAM API, future) require addi
 
 ## Resource API
 
-After login, use the access token from `TokenSet` or `AuthenticatedSession`:
+After login, use the access token from `TokenSet` or `AuthenticatedSession`. Opaque access tokens are elevated automatically when the IDP requires an authorization JWT for userinfo/validate.
+
+**IDP session cookies:** `GET /resources/validate` also requires an active IDP host session (`$_SESSION['user_id']` on the IDP). Capture `Set-Cookie` via `IdpHttpCookies` on login / userinfo and replay them on later calls. `completeLogin()` stores the cookie header on `AuthenticatedSession::$idpCookies`. Prefer the `*ForSession` helpers when you already have an `AuthenticatedSession`, or pass `IdpHttpCookies::fromHeader($session->idpCookies)` and persist `$cookies->toHeader()` afterward.
 
 ```php
 $token = $session->tokens->accessToken();
+$cookies = IdpHttpCookies::fromHeader($session->idpCookies);
 
 // Full profile (includes optional ORK link data)
-$profile = $idp->fetchUserProfile($token);
+$profile = $idp->fetchUserProfile($token, $cookies);
 
 // Session heartbeat — lighter than userinfo; returns id, email, jwt
-$validated = $idp->validate($token);
+$validated = $idp->validate($token, $cookies);
 
-// Fresh authorization JWT (cached server-side for validate/pubsub)
-$jwt = $idp->fetchJwt($token);
+// Authorization JWT (elevates opaque tokens; JWT-shaped access tokens returned as-is)
+$jwt = $idp->fetchJwt($token, $cookies);
+
+// Persist updated cookies on your app session
+$session = $session->withIdpCookies($cookies->toHeader());
+
+// Or, fewer lines with session helpers:
+[$profile, $session] = $idp->fetchUserProfileForSession($session);
+[$validated, $session] = $idp->validateForSession($session);
+[$jwt, $session] = $idp->fetchJwtForSession($session);
 ```
 
 Backend services can evaluate IAM policies without a user bearer token or extra HTTP call:
@@ -552,10 +568,12 @@ Each code maps to a common client implementation mistake. Fix the root cause, th
 - Wrong token sent (ID token vs access token — use **access_token** from `/oauth/token`)
 - Missing `Authorization: Bearer` header
 - Token for a different environment (prod token against dev IDP)
+- For `/resources/validate`: missing IDP session cookies — validate checks the IDP host session, not only the bearer. Replay `IdpHttpCookies` captured from `completeLogin()` / userinfo (`AuthenticatedSession::$idpCookies`)
 
 **Fix:**
 1. Send `Authorization: Bearer {access_token}` — this library does this automatically
 2. Refresh or re-login if expired
+3. For validate: pass and persist `IdpHttpCookies` (or use `validateForSession()`) so the IDP `PHPSESSID` (or equivalent) is replayed
 
 ---
 
