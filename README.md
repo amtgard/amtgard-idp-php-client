@@ -24,6 +24,19 @@ Slim apps should also install Slim to use the bundled auth controller:
 composer require slim/slim
 ```
 
+### Dependencies (`ork-iam` 2.x)
+
+This package requires:
+
+| Package | Constraint |
+|---------|------------|
+| `amtgard/ork-iam` | `^2.1` |
+| `amtgard/ork-iam-orn-definitions` | `^2.0` |
+
+That is a **major** bump from the previous `ork-iam` `1.4.1` / `ork-iam-orn-definitions` `^0.9` line. `IdpClient` method signatures are unchanged. Apps that import `Amtgard\IAM\*` types directly (custom claims, `OrkServices`, `serviceFormat()` overrides, etc.) must follow the upstream rename table: [ork-iam MIGRATION-2.0](https://github.com/amtgard/ork-iam/blob/main/docs/MIGRATION-2.0.md).
+
+**Wire compatibility:** ORN strings and IDP JSON field names (`provisos`, `service_format`, …) are unchanged. This client can run on `ork-iam` 2.x while the IDP server remains on `ork-iam` **1.4.1**.
+
 ## Configuration (`.env`)
 
 Load `.env` before your DI container boots (e.g. `vlucas/phpdotenv` in `public/index.php`). The on-rails factories expect these variables:
@@ -192,20 +205,21 @@ For app-specific env layout, wrap or replace `EnvIdpClientEnvironment` with your
 | `ValidatedSession` | `id`, `email`, `jwt` |
 | `AuthorizationCheck` | `isAuthorized` (bool) — `Amtgard\IdpClient\Iam\AuthorizationCheck` |
 
-### IAM types (`amtgard/ork-iam`)
+### IAM types (`amtgard/ork-iam` ^2.1)
 
 | Type | Namespace | Role |
 |------|-----------|------|
 | `Policy` | `Amtgard\IAM\Allowance\Policy` | User's IAM claim set — passed to `checkAuthorization()` |
 | `Requirement` | `Amtgard\IAM\Requirement\Requirement` | Action/resource being checked — passed to `checkAuthorization()` |
+| `ServiceCatalog` | `Amtgard\IAM\Catalog\ServiceCatalog` | Built-in service prefixes (replaces 1.x `OrkServices`) |
 
 Supporting packages:
 
-- `amtgard/ork-iam-orn-definitions` — registers ORK and Attendance ORN classes
+- `amtgard/ork-iam-orn-definitions` `^2.0` — registers ORK and Attendance ORN classes
 - `Amtgard\IdpClient\Iam\OrnBootstrap` — registers IDP-namespace ORN classes (`Idp` prefix)
 - `Amtgard\IdpClient\Iam\OrnParser` — internal parser used by `policyFromOrns()` / `requirementFromOrn()`
 
-Custom integrator `iam_service` namespaces (Client IAM API, future) require additional ORN registration at runtime.
+Custom integrator `iam_service` namespaces (Client IAM API) require additional ORN registration at runtime. Claim / requirement authors override `ornSegmentSchema()` (not 1.x `serviceFormat()`). See [ork-iam MIGRATION-2.0](https://github.com/amtgard/ork-iam/blob/main/docs/MIGRATION-2.0.md).
 
 ## Resource API
 
@@ -713,7 +727,8 @@ Optional env vars:
 | `/resources/userinfo` | Yes | Typed `UserProfile` |
 | `/resources/validate` | Yes | Typed `ValidatedSession` |
 | `/resources/jwt` | Yes | JWT string |
-| `/api/is_authorized` | Yes (HTTP API for non-PHP clients) | Local `checkAuthorization()` via `ork-iam` |
+| `/api/is_authorized` | Yes (HTTP API for non-PHP clients) | Local `checkAuthorization()` via `ork-iam` ^2.1 |
+| `ork-iam` version | May remain **1.4.1** | **^2.1** (wire-compatible; ontology is PHP-only) |
 
 ## License
 

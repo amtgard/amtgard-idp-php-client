@@ -106,12 +106,14 @@ Ordered milestones for implementers. Check boxes in the implementation PR as wor
 
 ## M7 — README / examples / changelog notes
 
-- [ ] README: document major dep bump; link upstream MIGRATION-2.0 for apps using IAM types directly
-- [ ] README: state wire compatibility with IDP still on 1.4.1
-- [ ] Update slim-docker / examples only where they reference 1.x type names
-- [ ] Add release-note bullet list for the eventual package tag
+- [x] README: document major dep bump; link upstream MIGRATION-2.0 for apps using IAM types directly
+- [x] README: state wire compatibility with IDP still on 1.4.1
+- [x] Update slim-docker / examples only where they reference 1.x type names
+- [x] Add release-note bullet list for the eventual package tag
 
 **Exit:** consumer-facing docs accurate for 2.x.
+
+**M7 notes:** README documents `ork-iam` `^2.1` / orn-definitions `^2.0`, MIGRATION-2.0 link, and wire compatibility with IDP on 1.4.1. Slim-docker / examples had no `OrkServices` / claim `serviceFormat()` overrides to rewrite (wire DTO / route names retained). Added root `CHANGELOG.md` Unreleased section for the eventual package tag.
 
 ---
 
