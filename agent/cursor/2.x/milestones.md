@@ -41,12 +41,12 @@ Ordered milestones for implementers. Check boxes in the implementation PR as wor
 
 ## M2 — Dependency bump
 
-- [ ] Update `composer.json`:
-  - [ ] `"amtgard/ork-iam": "^2.1"` (or exact `2.1.1` if release train requires)
-  - [ ] `"amtgard/ork-iam-orn-definitions": "^2.0"`
-- [ ] Run `composer update amtgard/ork-iam amtgard/ork-iam-orn-definitions` (or full update if lock requires)
-- [ ] Confirm lockfile pins resolve to 2.x line (not 1.4.1)
-- [ ] Expect compile failures — that is the signal for M3
+- [x] Update `composer.json`:
+  - [x] `"amtgard/ork-iam": "^2.1"` (or exact `2.1.1` if release train requires)
+  - [x] `"amtgard/ork-iam-orn-definitions": "^2.0"`
+- [x] Run `composer update amtgard/ork-iam amtgard/ork-iam-orn-definitions` (or full update if lock requires)
+- [x] Confirm lockfile pins resolve to 2.x line (not 1.4.1)
+- [x] Expect compile failures — that is the signal for M3
 
 **Exit:** lockfile on 2.x; CI may be red until adapters land.
 
