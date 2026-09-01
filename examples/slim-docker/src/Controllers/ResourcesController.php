@@ -8,8 +8,6 @@ use Amtgard\IdpClient\Client\IdpClient;
 use Amtgard\IdpClient\Exception\IdpClientException;
 use Amtgard\IdpSlimExample\Config\ExampleDefaults;
 use Amtgard\IdpClient\Resource\AuthenticatedSession;
-use Amtgard\IdpClient\Resource\Http\IdpHttpCookies;
-use Amtgard\IdpClient\Resource\UserProfile;
 use Amtgard\IdpClient\Session\SessionAuthStore;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -31,11 +29,9 @@ final class ResourcesController
             return $session;
         }
 
-        $cookies = $this->idpCookies($session);
-
-        return $this->execute($response, function () use ($session, $cookies) {
-            $profile = $this->idpClient->fetchUserProfileForAccessToken($session->tokens->accessToken(), $cookies);
-            $this->storeSession($session, $profile, $cookies);
+        return $this->execute($response, function () use ($session) {
+            [$profile, $updated] = $this->idpClient->fetchUserProfileForSession($session);
+            $this->authStore->store($updated);
 
             return $profile;
         }, static function ($profile) {
@@ -55,17 +51,9 @@ final class ResourcesController
             return $session;
         }
 
-        $cookies = $this->idpCookies($session);
-
-        return $this->execute($response, function () use ($session, $cookies) {
-            $validated = $this->idpClient->validateForAccessToken($session->tokens->accessToken(), $cookies);
-            $profile = new UserProfile(
-                $validated->id,
-                $validated->email,
-                $validated->jwt,
-                $session->profile->orkProfile,
-            );
-            $this->storeSession($session, $profile, $cookies);
+        return $this->execute($response, function () use ($session) {
+            [$validated, $updated] = $this->idpClient->validateForSession($session);
+            $this->authStore->store($updated);
 
             return $validated;
         }, static function ($validated) {
@@ -84,11 +72,9 @@ final class ResourcesController
             return $session;
         }
 
-        $cookies = $this->idpCookies($session);
-
-        return $this->execute($response, function () use ($session, $cookies) {
-            $jwt = $this->idpClient->fetchJwtForAccessToken($session->tokens->accessToken(), $cookies);
-            $this->storeSession($session, $session->profile, $cookies);
+        return $this->execute($response, function () use ($session) {
+            [$jwt, $updated] = $this->idpClient->fetchJwtForSession($session);
+            $this->authStore->store($updated);
 
             return $jwt;
         }, static function (string $jwt) {
@@ -103,12 +89,12 @@ final class ResourcesController
             return $session;
         }
 
-        $cookies = $this->idpCookies($session);
-
-        return $this->execute($response, function () use ($session, $cookies) {
+        return $this->execute($response, function () use ($session) {
             $tokens = $this->idpClient->refresh($session->tokens);
-            $profile = $this->idpClient->fetchUserProfileForAccessToken($tokens->accessToken(), $cookies);
-            $this->storeSession($session, $profile, $cookies, $tokens);
+            [$profile, $updated] = $this->idpClient->fetchUserProfileForSession(
+                $session->withTokens($tokens),
+            );
+            $this->authStore->store($updated);
 
             return $tokens;
         }, static function ($tokens) {
@@ -185,25 +171,6 @@ final class ResourcesController
                 'message' => $exception->getMessage(),
             ], 400);
         }
-    }
-
-    private function idpCookies(AuthenticatedSession $session): IdpHttpCookies
-    {
-        return IdpHttpCookies::fromHeader($session->idpCookies);
-    }
-
-    private function storeSession(
-        AuthenticatedSession $session,
-        UserProfile $profile,
-        IdpHttpCookies $cookies,
-        ?\Amtgard\IdpClient\OAuth\TokenSet $tokens = null,
-    ): void {
-        $this->authStore->store(new AuthenticatedSession(
-            $tokens ?? $session->tokens,
-            $profile,
-            $session->returnTo,
-            $cookies->toHeader(),
-        ));
     }
 
     private function requireAuthenticatedSession(ResponseInterface $response): AuthenticatedSession|ResponseInterface

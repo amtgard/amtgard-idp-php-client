@@ -20,6 +20,16 @@ final readonly class AuthenticatedSession
         return new self($this->tokens, $this->profile, $this->returnTo, $idpCookies);
     }
 
+    public function withProfile(UserProfile $profile): self
+    {
+        return new self($this->tokens, $profile, $this->returnTo, $this->idpCookies);
+    }
+
+    public function withTokens(TokenSet $tokens): self
+    {
+        return new self($tokens, $this->profile, $this->returnTo, $this->idpCookies);
+    }
+
     /**
      * @return array<string, mixed>
      */

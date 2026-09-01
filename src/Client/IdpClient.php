@@ -159,7 +159,7 @@ final class IdpClient
 
         return new AuthenticatedSession(
             $result->tokens,
-            $this->fetchUserProfileForAccessToken($result->tokens->accessToken(), $cookies),
+            $this->fetchUserProfile($result->tokens->accessToken(), $cookies),
             $result->returnTo,
             $cookies->toHeader(),
         );
@@ -168,51 +168,36 @@ final class IdpClient
     /**
      * Load the full user profile for an OAuth access token.
      *
-     * Prefers the documented elevation flow ({@see fetchJwt()} then {@see fetchUserProfile()}).
+     * Prefers the documented elevation flow ({@see fetchJwt()} then userinfo).
      * If the IDP rejects elevation at `/resources/jwt`, falls back to calling `/resources/userinfo`
      * with the access token directly (supported on some deployed IDP builds).
+     *
+     * Pass {@see IdpHttpCookies} from {@see AuthenticatedSession::$idpCookies} (and persist
+     * updates after the call) so later {@see validate()} can replay the IDP host session.
      */
-    public function fetchUserProfileForAccessToken(string $oauthAccessToken, ?IdpHttpCookies $cookies = null): UserProfile
+    public function fetchUserProfile(string $oauthAccessToken, ?IdpHttpCookies $cookies = null): UserProfile
     {
-        return $this->fetchUserProfile($this->resolveResourceBearer($oauthAccessToken, $cookies), $cookies);
+        return $this->fetchUserProfileWithAuthorizationJwt(
+            $this->resolveResourceBearer($oauthAccessToken, $cookies),
+            $cookies,
+        );
     }
 
     /**
      * Session heartbeat for an OAuth access token.
      *
-     * Calls {@see fetchUserProfile()} then {@see validate()} with the same bearer token so the IDP
-     * Redis cache (keyed on the userinfo Authorization header) matches the validate challenge JWT.
+     * Calls userinfo then validate with the same bearer token so the IDP Redis cache
+     * (keyed on the userinfo Authorization header) matches the validate challenge JWT.
+     *
+     * Replay {@see IdpHttpCookies} from login / prior resource calls — validate requires an
+     * active IDP browser session cookie, not only a bearer token.
      */
-    public function validateForAccessToken(string $oauthAccessToken, ?IdpHttpCookies $cookies = null): ValidatedSession
+    public function validate(string $oauthAccessToken, ?IdpHttpCookies $cookies = null): ValidatedSession
     {
         $bearer = $this->resolveResourceBearer($oauthAccessToken, $cookies);
-        $this->fetchUserProfile($bearer, $cookies);
+        $this->fetchUserProfileWithAuthorizationJwt($bearer, $cookies);
 
-        return $this->validate($bearer, $cookies);
-    }
-
-    /**
-     * @param string $authorizationJwt RS256 authorization JWT from {@see fetchJwt()} or {@see UserProfile::$jwt}
-     */
-    public function fetchUserProfile(string $authorizationJwt, ?IdpHttpCookies $cookies = null): UserProfile
-    {
-        return $this->resourceClient->fetchUserProfile($authorizationJwt, $cookies);
-    }
-
-    /**
-     * @param string $authorizationJwt RS256 authorization JWT from {@see fetchJwt()} or {@see UserProfile::$jwt}
-     */
-    public function validate(string $authorizationJwt, ?IdpHttpCookies $cookies = null): ValidatedSession
-    {
-        return $this->resourceClient->validate($authorizationJwt, $cookies);
-    }
-
-    /**
-     * @param string $oauthAccessToken OAuth access token from {@see TokenSet::accessToken()}
-     */
-    public function fetchJwt(string $oauthAccessToken, ?IdpHttpCookies $cookies = null): string
-    {
-        return $this->resourceClient->fetchJwt($oauthAccessToken, $cookies);
+        return $this->validateWithAuthorizationJwt($bearer, $cookies);
     }
 
     /**
@@ -222,14 +207,14 @@ final class IdpClient
      * issue JWT-shaped access tokens that work directly on /resources/userinfo; those are
      * returned as-is because /resources/jwt rejects authorization JWTs.
      */
-    public function fetchJwtForAccessToken(string $oauthAccessToken, ?IdpHttpCookies $cookies = null): string
+    public function fetchJwt(string $oauthAccessToken, ?IdpHttpCookies $cookies = null): string
     {
         if (substr_count($oauthAccessToken, '.') === 2) {
             return $oauthAccessToken;
         }
 
         try {
-            return $this->fetchJwt($oauthAccessToken, $cookies);
+            return $this->resourceClient->fetchJwt($oauthAccessToken, $cookies);
         } catch (ResourceException $exception) {
             if ($exception->errorCode() !== ErrorCode::ResourceUnauthorized) {
                 throw $exception;
@@ -237,6 +222,88 @@ final class IdpClient
         }
 
         return $oauthAccessToken;
+    }
+
+    /**
+     * Low-level: GET /resources/userinfo with an authorization JWT (not an OAuth access token).
+     *
+     * Prefer {@see fetchUserProfile()} with the OAuth access token in application code.
+     *
+     * @param string $authorizationJwt RS256 authorization JWT from {@see fetchJwt()} or {@see UserProfile::$jwt}
+     */
+    public function fetchUserProfileWithAuthorizationJwt(
+        string $authorizationJwt,
+        ?IdpHttpCookies $cookies = null,
+    ): UserProfile {
+        return $this->resourceClient->fetchUserProfile($authorizationJwt, $cookies);
+    }
+
+    /**
+     * Low-level: GET /resources/validate with an authorization JWT (not an OAuth access token).
+     *
+     * Prefer {@see validate()} with the OAuth access token. Requires IDP session cookies from
+     * prior resource calls (see {@see IdpHttpCookies}).
+     *
+     * @param string $authorizationJwt RS256 authorization JWT from {@see fetchJwt()} or {@see UserProfile::$jwt}
+     */
+    public function validateWithAuthorizationJwt(
+        string $authorizationJwt,
+        ?IdpHttpCookies $cookies = null,
+    ): ValidatedSession {
+        return $this->resourceClient->validate($authorizationJwt, $cookies);
+    }
+
+    /**
+     * Fetch user profile using the session's access token and IDP cookies.
+     *
+     * @return array{0: UserProfile, 1: AuthenticatedSession} profile and session with updated cookies/profile
+     */
+    public function fetchUserProfileForSession(AuthenticatedSession $session): array
+    {
+        $cookies = IdpHttpCookies::fromHeader($session->idpCookies);
+        $profile = $this->fetchUserProfile($session->tokens->accessToken(), $cookies);
+
+        return [
+            $profile,
+            $session->withProfile($profile)->withIdpCookies($cookies->toHeader()),
+        ];
+    }
+
+    /**
+     * Validate session heartbeat using the session's access token and IDP cookies.
+     *
+     * Updates the stored profile's id/email/jwt while preserving {@see UserProfile::$orkProfile}.
+     *
+     * @return array{0: ValidatedSession, 1: AuthenticatedSession}
+     */
+    public function validateForSession(AuthenticatedSession $session): array
+    {
+        $cookies = IdpHttpCookies::fromHeader($session->idpCookies);
+        $validated = $this->validate($session->tokens->accessToken(), $cookies);
+        $profile = new UserProfile(
+            $validated->id,
+            $validated->email,
+            $validated->jwt,
+            $session->profile->orkProfile,
+        );
+
+        return [
+            $validated,
+            $session->withProfile($profile)->withIdpCookies($cookies->toHeader()),
+        ];
+    }
+
+    /**
+     * Fetch (or reuse) an authorization JWT using the session's access token and IDP cookies.
+     *
+     * @return array{0: string, 1: AuthenticatedSession} JWT and session with updated cookies
+     */
+    public function fetchJwtForSession(AuthenticatedSession $session): array
+    {
+        $cookies = IdpHttpCookies::fromHeader($session->idpCookies);
+        $jwt = $this->fetchJwt($session->tokens->accessToken(), $cookies);
+
+        return [$jwt, $session->withIdpCookies($cookies->toHeader())];
     }
 
     public function checkAuthorization(Policy $policy, Requirement $requirement): AuthorizationCheck
@@ -310,7 +377,7 @@ final class IdpClient
         }
 
         try {
-            return $this->fetchJwt($oauthAccessToken, $cookies);
+            return $this->resourceClient->fetchJwt($oauthAccessToken, $cookies);
         } catch (ResourceException $exception) {
             if ($exception->errorCode() !== ErrorCode::ResourceUnauthorized) {
                 throw $exception;

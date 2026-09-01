@@ -8,9 +8,9 @@ Reference [Slim 4](https://www.slimframework.com/) app exercising **every** publ
 |--------------------|-------|------|
 | `beginAuthorization()` | `GET /login` | Session (`IdpAuthController`) |
 | `completeLogin()` | `GET /oauth/callback` | Session (`IdpAuthController`) |
-| `fetchUserProfile()` | `GET /resources/userinfo` | Bearer (logged-in session) |
-| `validate()` | `GET /resources/validate` | Bearer |
-| `fetchJwt()` | `GET /resources/jwt` | Bearer |
+| `fetchUserProfile()` / `fetchUserProfileForSession()` | `GET /resources/userinfo` | Bearer + IDP cookies (logged-in session) |
+| `validate()` / `validateForSession()` | `GET /resources/validate` | Bearer + IDP cookies |
+| `fetchJwt()` / `fetchJwtForSession()` | `GET /resources/jwt` | Bearer + IDP cookies |
 | `refresh()` | `POST /refresh` | Bearer |
 | `checkAuthorization()` | `POST /api/check-authorization` | None (local `ork-iam` evaluation via example route) |
 | `SessionAuthStore` | `GET /me`, `/logout` | Session |

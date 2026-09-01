@@ -1,6 +1,6 @@
 # amtgard-idp-php-client — Implementation Plan
 
-**Status:** Phases 0–5 complete (OAuth, resources, local IAM, module reorg). **Phase 6 (Client IAM)** is planned — blocked on IDP security validation and `amtgard/ork-iam` `ClaimComposer`.  
+**Status:** Phases 0–6 complete on **ork-iam 1.4.1** (OAuth, resources, local IAM, module reorg, Client IAM). Remaining 1.x work is ergonomics/docs polish. **ork-iam 2.x migration** is still future — do not implement here.  
 **Sibling server:** [amtgard-idp](https://github.com/amtgard/amtgard-bastion-idp) (`../amtgard-idp`)  
 **Sibling IAM:** [ork-iam](https://github.com/amtgard/ork-iam) (`../ork-iam`)  
 **Production IDP:** `https://idp.amtgard.com`  
@@ -17,7 +17,7 @@ Every new PHP app integrating with the Amtgard IDP repeats the same mistakes:
 3. **User-Agent** — server-side IDP HTTP defaults to `AmtgardIDP/1.0` (overridable via `IDP_HTTP_USER_AGENT`)
 4. **IAM string soup** — hand-authored `provisos` strings (`:0::::`) instead of structured ORN objects
 
-This library encodes **one** integration path: **OAuth 2.0 authorization code + PKCE (S256) + `profile email` scopes + resource API + local policy evaluation + (planned) Client IAM write APIs**.
+This library encodes **one** integration path: **OAuth 2.0 authorization code + PKCE (S256) + `profile email` scopes + resource API + local policy evaluation + Client IAM write APIs**.
 
 ---
 
@@ -31,10 +31,12 @@ This library encodes **one** integration path: **OAuth 2.0 authorization code + 
 | On-rails `IDP_*` env factories | Done |
 | Local policy evaluation via ork-iam | Done |
 | Module reorg by concern | Done |
-| High unit test coverage | Done (133 tests) |
+| High unit test coverage | Done |
 | Runnable Slim Docker example | Done — covers every `IdpClient` method |
 | Live integration against production IDP | Done |
-| Client IAM (Section 8) write APIs | **Planned — Phase 6** |
+| Client IAM (Section 8) write APIs | **Done** on ork-iam `1.4.1` (`src/ClientIam/`) |
+| Public resource API naming matches README (access-token ergonomics) | Done (1.x leftovers) |
+| ork-iam 2.x migration | **Future** — not started |
 
 ## Non-goals
 
@@ -45,6 +47,7 @@ This library encodes **one** integration path: **OAuth 2.0 authorization code + 
 - Setting `iam_service` via API (admin UI only)
 - Admin client management
 - `login_id` discovery API (unless IDP adds it to userinfo later)
+- ork-iam 2.x ontology rename in this package (separate migration)
 
 ---
 
@@ -70,7 +73,7 @@ amtgard-idp-php-client/
 │   │   ├── IdpProvider.php, Pkce.php, TokenSet.php, …
 │   │   └── Http/IdpTokenClient.php
 │   ├── Resource/
-│   │   ├── Http/Psr18IdpHttpClient.php
+│   │   ├── Http/Psr18IdpHttpClient.php, IdpHttpCookies.php
 │   │   ├── UserProfile.php, OrkProfile.php
 │   │   ├── AuthenticatedSession.php, ValidatedSession.php
 │   ├── Iam/
@@ -82,13 +85,13 @@ amtgard-idp-php-client/
 │   ├── Session/SessionAuthStore.php
 │   ├── Exception/                       # ErrorCode, ErrorMapper, typed exceptions
 │   ├── Slim/IdpAuthController.php, SessionMiddleware.php
-│   └── ClientIam/                       # Phase 6 — not started
+│   └── ClientIam/                       # Phase 6 — implemented (ork-iam 1.4.1)
 ├── tests/                               # mirrors src/ + Integration/
 └── examples/slim-docker/
 ```
 
 Namespace root: `Amtgard\IdpClient\`  
-Dependencies: PHP `^8.3`, `amtgard/ork-iam` `1.3.0`, `amtgard/ork-iam-orn-definitions` `^0.9.0`
+Dependencies: PHP `^8.3`, `amtgard/ork-iam` `1.4.1`, `amtgard/ork-iam-orn-definitions` `^0.9.0`
 
 ---
 
@@ -98,15 +101,17 @@ Dependencies: PHP `^8.3`, `amtgard/ork-iam` `1.3.0`, `amtgard/ork-iam-orn-defini
 |--------|-----------|---------|
 | `beginAuthorization(?returnTo)` | Redirect `/oauth/authorize` | PSR-7 302 |
 | `completeAuthorization($request)` | `/oauth/token` code exchange | `AuthorizationResult` |
-| `completeLogin($request)` | Exchange + `/resources/userinfo` | `AuthenticatedSession` |
-| `fetchUserProfile($accessToken)` | `GET /resources/userinfo` | `UserProfile` |
-| `validate($accessToken)` | `GET /resources/validate` | `ValidatedSession` |
-| `fetchJwt($accessToken)` | `GET /resources/jwt` | JWT string |
+| `completeLogin($request)` | Exchange + `/resources/userinfo` | `AuthenticatedSession` (includes `idpCookies`) |
+| `fetchUserProfile($accessToken, ?cookies)` | Elevate + `GET /resources/userinfo` | `UserProfile` |
+| `validate($accessToken, ?cookies)` | Elevate + userinfo warm + `GET /resources/validate` | `ValidatedSession` |
+| `fetchJwt($accessToken, ?cookies)` | Elevate opaque / return JWS access token | JWT string |
+| `*ForSession($session)` | Same as above using session token + cookies | `[result, updated AuthenticatedSession]` |
+| `*WithAuthorizationJwt($jwt, ?cookies)` | Advanced low-level resource calls | Same DTOs |
 | `checkAuthorization(Policy, Requirement)` | **Local** via ork-iam | `AuthorizationCheck` |
 | `policyFromOrns(array $orns)` | Local | `Policy` |
 | `requirementFromOrn(string $orn)` | Local | `Requirement` |
 | `refresh($tokens)` | `/oauth/token` refresh grant | `TokenSet` |
-| `clientIam()` | — | **Phase 6** — `ClientIamClient` |
+| `clientIam()` | Basic-auth `/resources/client/*` | `ClientIamClient` |
 
 Factories: `IdpClientEnvironmentFactory::fromEnvVars()`, `IdpClientFactory::fromEnvVars()` / `fromEnvironment()`
 
@@ -116,7 +121,7 @@ Slim accelerators: `Slim\IdpAuthController`, `Slim\SessionMiddleware`
 
 ### ork-iam on the public boundary
 
-`checkAuthorization()`, `policyFromOrns()`, and `requirementFromOrn()` expose `Amtgard\IAM\Allowance\Policy` and `Amtgard\IAM\Requirement\Requirement` directly. Phase 6 will also expose `Amtgard\IAM\Allowance\Claim` on the write path (`addPolicyClaim`, `composeClaim`).
+`checkAuthorization()`, `policyFromOrns()`, and `requirementFromOrn()` expose `Amtgard\IAM\Allowance\Policy` and `Amtgard\IAM\Requirement\Requirement` directly. Client IAM write path exposes `Amtgard\IAM\Allowance\Claim` (`addPolicyClaim`, `composeClaim`).
 
 ---
 
@@ -130,7 +135,7 @@ Stable `ErrorCode` enum + README anchor sections.
 | `TokenExchangeException` | `/oauth/token` |
 | `ResourceException` | `/resources/*` bearer endpoints |
 | `IdpConfigurationException` | Missing `IDP_*` env vars |
-| `ClientIamException` | **Phase 6** — `/resources/client/*` |
+| `ClientIamException` | `/resources/client/*` |
 
 ---
 
@@ -138,7 +143,7 @@ Stable `ErrorCode` enum + README anchor sections.
 
 | Suite | Enable | Target |
 |-------|--------|--------|
-| Unit | `composer test` | Mocked PSR-18 — **133 tests** |
+| Unit | `composer test` | Mocked PSR-18 |
 | IDP integration | `IDP_INTEGRATION=1` | `https://idp.amtgard.com` |
 | Slim integration | `SLIM_INTEGRATION=1` | `http://localhost:38080` |
 
@@ -204,13 +209,28 @@ Composer scripts: `integration:slim`, `integration:slim:up`, `integration:slim:d
 - [x] Tests: `OrnBootstrapTest`, `OrnParserTest`, `AuthorizationEvaluatorTest`; expanded `IdpTokenClientTest`
 - [x] README Public API reference; ORN types documented for `checkAuthorization`
 
+### Phase 6 — Client IAM API (done on ork-iam `1.4.1`)
+
+- [x] `src/ClientIam/` — `ClientIamClient`, Basic-auth HTTP, DTOs, validators
+- [x] `IdpClient::clientIam()`, `ClientIamException` + `CLIENT_IAM_*` codes
+- [x] Integrator ORN registration (`IntegratorClaim`, `IntegratorFormatRegistry`, `IntegratorOrnRegistrar`)
+- [x] Slim example Client IAM routes + README coverage
+- [x] Unit tests under `tests/ClientIam/`
+
+### 1.x leftovers (API ergonomics)
+
+- [x] Public short names (`fetchUserProfile` / `validate` / `fetchJwt`) accept OAuth access tokens
+- [x] Advanced `*WithAuthorizationJwt` for low-level bearer paths
+- [x] `*ForSession` helpers + README cookie/session docs
+- [ ] ork-iam **2.x** migration — **future**, not in this package yet
+
 ---
 
-## Prerequisites for Phase 6
+## Phase 6 context (historical — implemented)
 
-Phase 6 must not start until both prerequisites are satisfied.
+Prerequisites below were satisfied before shipping Client IAM on ork-iam `1.4.1`. Kept for reference; do not treat as a blocker.
 
-### Prerequisite A — IDP security boundaries (in progress)
+### Prerequisite A — IDP security boundaries (assumed enforced server-side)
 
 Validate isolated edit permissions for client integrators on the IDP server before shipping a write-path client library. The library design assumes the server enforces:
 
@@ -225,15 +245,15 @@ Validate isolated edit permissions for client integrators on the IDP server befo
 
 **IDP reference:** `ClientResourcesController.php`, `UserPolicyClaimRepository.php`, `ClientMetadataValidator.php`
 
-### Prerequisite B — ork-iam `ClaimComposer` (external, not started)
+### Prerequisite B — ork-iam `ClaimComposer` (shipped in ork-iam `1.4.x`)
 
 Policy claim composition and IDP wire-format splitting belong in **`amtgard/ork-iam`**, not this library. See [Phase 6 dependency: ork-iam ClaimComposer](#phase-6-dependency-ork-iam-claimcomposer) below.
 
-**Minimum ork-iam release for Phase 6:** `ClaimComposer`, `OrnWireFormat`, `OrnWireParts` (target `ork-iam` `1.4.0` on 1.x branch or `2.0.x` on ontology branch).
+**Minimum ork-iam release for Phase 6:** `ClaimComposer`, `OrnWireFormat`, `OrnWireParts` — satisfied by `ork-iam` `1.4.1` (this package pins `1.4.1`).
 
 ---
 
-## Phase 6 — Client IAM API (`v0.14.0`)
+## Phase 6 — Client IAM API (implemented)
 
 **IDP reference:** Section 8 — `templates/api.md`, `ClientResourcesController.php`  
 **Auth:** HTTP Basic (`client_id:client_secret`) on all `/resources/client/*` routes  
@@ -259,16 +279,16 @@ Metadata rules (mirror IDP `ClientMetadataValidator`):
 
 ### Gaps in this library
 
-| Area | Have today | Phase 6 deliverable |
-|------|------------|---------------------|
-| HTTP | Bearer `Psr18IdpHttpClient` | Basic-auth `Psr18ClientIamHttpClient` |
-| Service format | — | `getServiceFormat`, `createServiceFormat`, `replaceServiceFormat` |
-| Policy claims (write) | Local read/evaluate only | `addPolicyClaim`, `deletePolicyClaim`, `listPolicyClaims` |
-| User metadata | — | `putUserMetadata`, `getUserMetadata`, `deleteUserMetadata` |
-| Integrator ORN | `Idp` prefix only | `IntegratorClaim` + `IntegratorFormatRegistry` |
-| Identifiers | `UserProfile::id` (int) | Document `idp_user_id` (UUID `sub`) + `login_id` |
-| Errors | `ResourceException`, etc. | `ClientIamException` + `CLIENT_IAM_*` codes |
-| Docs / example | Future mention in README | Section 8 quickstart + Slim routes |
+| Area | Delivered |
+|------|-----------|
+| HTTP | Basic-auth `Psr18ClientIamHttpClient` |
+| Service format | `getServiceFormat`, `createServiceFormat`, `replaceServiceFormat` |
+| Policy claims (write) | `addPolicyClaim`, `deletePolicyClaim`, `listPolicyClaims` |
+| User metadata | `putUserMetadata`, `getUserMetadata`, `deleteUserMetadata` |
+| Integrator ORN | `IntegratorClaim` + `IntegratorFormatRegistry` |
+| Identifiers | Document `idp_user_id` (UUID `sub`) + `login_id` |
+| Errors | `ClientIamException` + `CLIENT_IAM_*` codes |
+| Docs / example | README Client IAM + Slim routes |
 
 ### Module: `src/ClientIam/`
 
@@ -537,11 +557,11 @@ $this->http->post('policy-claims', [
 
 ### Optional follow-up (Phase C)
 
-Slim `IdpClient` to a thinner façade if it grows further. Not blocking Phase 6.
+Slim `IdpClient` to a thinner façade if it grows further. Not blocking.
 
 ### Open: `Resource/` vs `Model/`
 
-`Resource/` today means IDP `/resources/*` API DTOs. Client IAM DTOs will live in `ClientIam/Model/`. Renaming `Resource/` → `Model/` is optional and can be deferred.
+`Resource/` today means IDP `/resources/*` API DTOs. Client IAM DTOs live in `ClientIam/Model/`. Renaming `Resource/` → `Model/` is optional and can be deferred.
 
 ---
 
@@ -549,8 +569,7 @@ Slim `IdpClient` to a thinner façade if it grows further. Not blocking Phase 6.
 
 | Library version | ork-iam | Notes |
 |-----------------|---------|-------|
-| Current | `1.3.0` | Local evaluation, `OrnSegmentLabel` aliases |
-| Phase 6 | `^1.4` | Requires `ClaimComposer` |
+| Current | `1.4.1` | Local evaluation + Client IAM (`ClaimComposer`, wire format) |
 | Future | `^2.0` | Ontology rename per `ork-iam/docs/MIGRATION-2.0.md`; swap adapters in `src/Iam/` and `ClientIam/Iam/` only |
 
 When `ork-iam` 2.0 ships: `Proviso` → `OrnSegment`, `getProviso` → `getSegment`, `OrkServices` → `ServiceCatalog`. Public `IdpClient` method signatures stay stable; internal imports change.
@@ -578,11 +597,11 @@ Read by `IdpClientEnvironmentFactory::fromEnvVars()`:
 | Issues tokens | Yes | Consumes tokens |
 | OAuth authorize/token | Yes | League `GenericProvider` wrapper |
 | `/resources/userinfo` | Yes | `UserProfile` |
-| `/resources/validate` | Yes | `ValidatedSession` |
+| `/resources/validate` | Yes | `ValidatedSession` (+ IDP cookie replay) |
 | `/resources/jwt` | Yes | JWT string |
 | `/api/is_authorized` | Yes (HTTP for non-PHP) | **Local** `checkAuthorization()` via ork-iam |
-| `/resources/client/*` | Yes (Section 8) | **Phase 6** — `ClientIamClient` |
-| Integrator security boundaries | Yes | Assumed; validated in Prerequisite A |
+| `/resources/client/*` | Yes (Section 8) | `ClientIamClient` via `IdpClient::clientIam()` |
+| Integrator security boundaries | Yes | Assumed enforced server-side |
 
 ---
 
@@ -590,9 +609,9 @@ Read by `IdpClientEnvironmentFactory::fromEnvVars()`:
 
 1. **Packagist name** — `amtgard/idp-php-client` vs `amtgard/idp-client`
 2. **Confidential clients + PKCE** — verify prod IDP accepts both before relaxing PKCE policy
-3. **ork-iam 2.0 timing** — ship Phase 6 on `^1.4` or wait for `^2.0`?
+3. **ork-iam 2.0 timing** — when to migrate adapters (`src/Iam/`, `ClientIam/Iam/`) after `^2.0` ships
 4. **JWT decode helper** — `firebase/php-jwt` as optional `suggest`, or document manual base64 only?
-5. **Resource → Model rename** — defer or do with Phase 6?
+5. **Resource → Model rename** — defer indefinitely unless it clarifies the tree
 
 ---
 
