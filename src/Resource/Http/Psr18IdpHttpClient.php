@@ -13,7 +13,6 @@ use Amtgard\IdpClient\Resource\ValidatedSession;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
-use Psr\Http\Message\StreamFactoryInterface;
 
 final class Psr18IdpHttpClient
 {
@@ -21,7 +20,6 @@ final class Psr18IdpHttpClient
         private readonly IdpClientEnvironment $environment,
         private readonly ClientInterface $http,
         private readonly RequestFactoryInterface $requests,
-        private readonly StreamFactoryInterface $streams,
     ) {}
 
     public function fetchUserProfile(string $authorizationJwt, ?IdpHttpCookies $cookies = null): UserProfile

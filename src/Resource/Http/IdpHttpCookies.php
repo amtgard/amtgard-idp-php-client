@@ -61,7 +61,7 @@ final class IdpHttpCookies
 
     public function absorbFromResponse(ResponseInterface $response): void
     {
-        $this->absorbSetCookieHeaders($response->getHeader('Set-Cookie'));
+        $this->absorbSetCookieHeaders(array_values($response->getHeader('Set-Cookie')));
     }
 
     /**

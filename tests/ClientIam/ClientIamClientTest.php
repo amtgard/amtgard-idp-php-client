@@ -334,6 +334,9 @@ final class ClientIamClientTest extends TestCase
         $this->assertCount(1, $http->requests);
     }
 
+    /**
+     * @param list<string>|null $iamServiceFormat
+     */
     private function createClientIamClient(
         MockPsr18Client $http,
         ?string $iamService = null,

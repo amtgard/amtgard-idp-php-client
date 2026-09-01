@@ -201,9 +201,17 @@ final class IdpIntegrationTest extends TestCase
             $this->fail('IDP_INTEGRATION_POLICY must decode to a JSON array.');
         }
 
+        $orns = [];
+        foreach ($policy as $orn) {
+            if (!is_string($orn)) {
+                $this->fail('IDP_INTEGRATION_POLICY must be a JSON array of ORN strings.');
+            }
+            $orns[] = $orn;
+        }
+
         $client = $this->createClient();
         $check = $client->checkAuthorization(
-            $client->policyFromOrns($policy),
+            $client->policyFromOrns($orns),
             $client->requirementFromOrn($requirement),
         );
 

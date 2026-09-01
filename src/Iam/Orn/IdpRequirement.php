@@ -13,6 +13,7 @@ final class IdpRequirement extends Requirement
         return IdpFormat::ornSegmentSchema();
     }
 
+    /** @return array<string, list<string>>|list<string> */
     protected function getResourceMap(?string $resource = null): array
     {
         return IdpFormat::getValidResourceMap($resource);

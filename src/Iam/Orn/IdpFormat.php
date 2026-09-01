@@ -19,6 +19,10 @@ final class IdpFormat extends ORNFormat
         ];
     }
 
+    /**
+     * @param string|null $resource
+     * @return array<string, list<string>>|list<string>
+     */
     public static function getValidResourceMap($resource = null): array
     {
         $map = [

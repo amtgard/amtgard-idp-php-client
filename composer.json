@@ -45,7 +45,7 @@
             "@php -r \"sleep(3);\"",
             "SLIM_INTEGRATION=1 phpunit --testsuite Integration --filter SlimDocker"
         ],
-        "stan": "phpstan analyse src tests",
+        "stan": "phpstan analyse src tests --memory-limit=512M",
         "cs": "phpcs"
     },
     "config": {

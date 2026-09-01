@@ -31,7 +31,7 @@ final class Psr18IdpHttpClientTest extends TestCase
         $json = Fixtures::read('userinfo_without_ork.json');
         $http->enqueue($this->psr17->createResponse(200)->withBody($this->psr17->createStream($json)));
 
-        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17, $this->psr17);
+        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17);
         $profile = $client->fetchUserProfile('token-abc');
 
         $request = $http->requests[0];
@@ -49,7 +49,7 @@ final class Psr18IdpHttpClientTest extends TestCase
             $this->psr17->createResponse(200)->withBody($this->psr17->createStream($json)),
         );
 
-        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17, $this->psr17);
+        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17);
         $session = $client->validate('token');
 
         $this->assertStringEndsWith('/resources/validate', (string) $http->requests[0]->getUri());
@@ -66,7 +66,7 @@ final class Psr18IdpHttpClientTest extends TestCase
             ),
         );
 
-        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17, $this->psr17);
+        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17);
         $jwt = $client->fetchJwt('token-abc');
 
         $request = $http->requests[0];
@@ -87,7 +87,7 @@ final class Psr18IdpHttpClientTest extends TestCase
             $this->psr17->createResponse(200)->withBody($this->psr17->createStream(Fixtures::read('validate.json'))),
         );
 
-        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17, $this->psr17);
+        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17);
         $cookies = new \Amtgard\IdpClient\Resource\Http\IdpHttpCookies();
 
         $client->fetchUserProfile('auth-jwt', $cookies);
@@ -101,7 +101,7 @@ final class Psr18IdpHttpClientTest extends TestCase
         $http = new MockPsr18Client();
         $http->enqueue($this->psr17->createResponse(401));
 
-        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17, $this->psr17);
+        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17);
 
         try {
             $client->fetchUserProfile('bad-token');
@@ -120,7 +120,7 @@ final class Psr18IdpHttpClientTest extends TestCase
             ),
         );
 
-        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17, $this->psr17);
+        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17);
 
         try {
             $client->validate('token');
@@ -139,7 +139,7 @@ final class Psr18IdpHttpClientTest extends TestCase
             ),
         );
 
-        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17, $this->psr17);
+        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17);
 
         try {
             $client->fetchUserProfile('token');
@@ -154,7 +154,7 @@ final class Psr18IdpHttpClientTest extends TestCase
         $http = new MockPsr18Client();
         $http->enqueue($this->psr17->createResponse(500)->withBody($this->psr17->createStream('error')));
 
-        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17, $this->psr17);
+        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17);
 
         try {
             $client->validate('token');
@@ -169,7 +169,7 @@ final class Psr18IdpHttpClientTest extends TestCase
         $http = new MockPsr18Client();
         $http->enqueue($this->psr17->createResponse(204));
 
-        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17, $this->psr17);
+        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17);
         $session = $client->validate('token');
 
         $this->assertSame(0, $session->id);
@@ -184,7 +184,7 @@ final class Psr18IdpHttpClientTest extends TestCase
             $this->psr17->createResponse(200)->withBody($this->psr17->createStream('{}')),
         );
 
-        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17, $this->psr17);
+        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17);
 
         try {
             $client->fetchJwt('token');
@@ -196,7 +196,7 @@ final class Psr18IdpHttpClientTest extends TestCase
 
     public function testHttpTransportFailure(): void
     {
-        $client = new Psr18IdpHttpClient(TestEnvironment::create(), new ThrowingHttpClient(), $this->psr17, $this->psr17);
+        $client = new Psr18IdpHttpClient(TestEnvironment::create(), new ThrowingHttpClient(), $this->psr17);
 
         try {
             $client->fetchUserProfile('token');
@@ -211,7 +211,7 @@ final class Psr18IdpHttpClientTest extends TestCase
         $http = new MockPsr18Client();
         $http->enqueue($this->psr17->createResponse(500));
 
-        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17, $this->psr17);
+        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17);
 
         try {
             $client->fetchUserProfile('token');
@@ -226,7 +226,7 @@ final class Psr18IdpHttpClientTest extends TestCase
         $http = new MockPsr18Client();
         $http->enqueue($this->psr17->createResponse(200)->withBody($this->psr17->createStream('"not-an-object"')));
 
-        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17, $this->psr17);
+        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17);
 
         try {
             $client->fetchUserProfile('token');
@@ -241,7 +241,7 @@ final class Psr18IdpHttpClientTest extends TestCase
         $http = new MockPsr18Client();
         $http->enqueue($this->psr17->createResponse(200)->withBody($this->psr17->createStream('not-json')));
 
-        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17, $this->psr17);
+        $client = new Psr18IdpHttpClient(TestEnvironment::create(), $http, $this->psr17);
 
         $this->expectException(ResourceException::class);
         $this->expectExceptionCode(0);

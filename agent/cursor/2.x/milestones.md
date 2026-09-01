@@ -81,12 +81,14 @@ Ordered milestones for implementers. Check boxes in the implementation PR as wor
 
 ## M5 — Isolation & static analysis
 
-- [ ] Grep: no `OrkServices`, `toOrkServices`, `getServiceIdentifier`, or claim `serviceFormat()` overrides left in `src/` / `tests/`
-- [ ] Grep: `Amtgard\IAM` imports only under allowed paths (+ `IdpClient` Policy/Requirement)
-- [ ] `composer stan` green
-- [ ] `composer cs` green if required by CI
+- [x] Grep: no `OrkServices`, `toOrkServices`, `getServiceIdentifier`, or claim `serviceFormat()` overrides left in `src/` / `tests/`
+- [x] Grep: `Amtgard\IAM` imports only under allowed paths (+ `IdpClient` Policy/Requirement)
+- [x] `composer stan` green
+- [x] `composer cs` green if required by CI
 
 **Exit:** stan + isolation checks pass.
+
+**M5 notes:** Isolation greps clean (wire DTO `serviceFormat` properties retained). `Amtgard\IAM` imports confined to `src/Iam/**`, `src/ClientIam/**`, and `IdpClient` Policy/Requirement. Stan memory bumped to 512M in composer script. CS: no phpcs ruleset / not gated in CI — N/A.
 
 ---
 
