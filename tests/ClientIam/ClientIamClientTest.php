@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Tests\ClientIam;
 
+use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IAM\ClaimFactory;
-use Amtgard\IAM\OrkServices;
 use Amtgard\IdpClient\Client\IdpClient;
 use Amtgard\IdpClient\ClientIam\ClientIamClient;
 use Amtgard\IdpClient\ClientIam\Http\Psr18ClientIamHttpClient;
@@ -142,8 +142,8 @@ final class ClientIamClientTest extends TestCase
             iamServiceFormat: ['Configuration', 'Kingdom'],
         );
 
-        IntegratorOrnRegistrar::register('Other', [OrkServices::Configuration]);
-        $orn = OrnWireFormat::composeFullOrn('Other', [OrkServices::Configuration], ['Configuration' => 0], 'Editor/Write');
+        IntegratorOrnRegistrar::register('Other', [ServiceCatalog::Configuration]);
+        $orn = OrnWireFormat::composeFullOrn('Other', [ServiceCatalog::Configuration], ['Configuration' => 0], 'Editor/Write');
         $claim = \Amtgard\IAM\ClaimFactory::createOrn($orn);
 
         try {
@@ -238,6 +238,105 @@ final class ClientIamClientTest extends TestCase
         $idp->clientIam();
     }
 
+    public function testUserMetadataRejectsNonPositiveLoginId(): void
+    {
+        $http = new MockPsr18Client();
+        $client = $this->createClientIamClient($http);
+
+        try {
+            $client->getUserMetadata('550e8400-e29b-41d4-a716-446655440000', 0);
+            $this->fail('Expected ClientIamException');
+        } catch (ClientIamException $exception) {
+            $this->assertSame(ErrorCode::ClientIamValidation, $exception->errorCode());
+        }
+
+        try {
+            $client->deleteUserMetadata('550e8400-e29b-41d4-a716-446655440000', -1);
+            $this->fail('Expected ClientIamException');
+        } catch (ClientIamException $exception) {
+            $this->assertSame(ErrorCode::ClientIamValidation, $exception->errorCode());
+        }
+
+        $this->assertCount(0, $http->requests);
+    }
+
+    public function testComposeClaimRequiresIamService(): void
+    {
+        $http = new MockPsr18Client();
+        $http->enqueue(
+            $this->psr17->createResponse(200)->withBody(
+                $this->psr17->createStream(json_encode([
+                    'iam_service' => null,
+                    'service_format' => ['Configuration', 'Kingdom'],
+                    'is_default' => false,
+                ], JSON_THROW_ON_ERROR)),
+            ),
+        );
+
+        $client = $this->createClientIamClient($http);
+
+        try {
+            $client->composeClaim(['Configuration' => 0, 'Kingdom' => 1], 'Editor/Write');
+            $this->fail('Expected ClientIamException');
+        } catch (ClientIamException $exception) {
+            $this->assertSame(ErrorCode::ClientIamValidation, $exception->errorCode());
+        }
+    }
+
+    public function testIamServicePrefersCachedServiceFormat(): void
+    {
+        $http = new MockPsr18Client();
+        $http->enqueue(
+            $this->psr17->createResponse(200)->withBody(
+                $this->psr17->createStream(Fixtures::read('client_iam_service_format.json')),
+            ),
+        );
+
+        $client = $this->createClientIamClient($http);
+        $client->getServiceFormat();
+
+        $this->assertSame('Skbc', $client->iamService());
+    }
+
+    public function testPolicyFromStoredClaimsRejectsInvalidOrn(): void
+    {
+        $client = $this->createClientIamClient(
+            new MockPsr18Client(),
+            iamService: 'Skbc',
+            iamServiceFormat: ['Configuration', 'Kingdom'],
+        );
+
+        $list = new PolicyClaimList([
+            new PolicyClaim('Skbc', ':bad:', 'Editor/Write'),
+        ]);
+
+        try {
+            $client->policyFromStoredClaims($list);
+            $this->fail('Expected ClientIamException');
+        } catch (ClientIamException $exception) {
+            $this->assertSame(ErrorCode::ClientIamInvalidOrn, $exception->errorCode());
+        }
+    }
+
+    public function testServiceFormatSlotsFetchesWhenOnlyIamServiceIsOffline(): void
+    {
+        $http = new MockPsr18Client();
+        $http->enqueue(
+            $this->psr17->createResponse(200)->withBody(
+                $this->psr17->createStream(Fixtures::read('client_iam_service_format.json')),
+            ),
+        );
+
+        $client = $this->createClientIamClient($http, iamService: 'Skbc', iamServiceFormat: null);
+        $slots = $client->serviceFormatSlots();
+
+        $this->assertNotEmpty($slots);
+        $this->assertCount(1, $http->requests);
+    }
+
+    /**
+     * @param list<string>|null $iamServiceFormat
+     */
     private function createClientIamClient(
         MockPsr18Client $http,
         ?string $iamService = null,

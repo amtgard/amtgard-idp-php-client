@@ -114,6 +114,7 @@ final class IdpClientFactoryTest extends TestCase
 
         $client->completeAuthorization($request);
 
+        $this->assertIsArray($container);
         $this->assertCount(1, $container);
         $tokenRequest = $container[0]['request'];
         $this->assertSame('POST', $tokenRequest->getMethod());

@@ -7,7 +7,8 @@ namespace Amtgard\IdpClient\ClientIam\Model;
 final readonly class UserMetadataRequest
 {
     /**
-     * @param array<string, mixed>|string $metadata JSON object when encoding=json; base64 string when encoding=base64
+     * @param array<int|string, mixed>|string $metadata JSON object when encoding=json; base64 string when encoding=base64.
+     *        List/invalid shapes are accepted here and rejected by UserMetadataValidator.
      */
     public function __construct(
         public string $idpUserId,

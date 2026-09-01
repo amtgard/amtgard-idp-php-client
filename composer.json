@@ -5,8 +5,8 @@
     "license": "proprietary",
     "require": {
         "php": "^8.3",
-        "amtgard/ork-iam": "1.4.1",
-        "amtgard/ork-iam-orn-definitions": "^0.9.0",
+        "amtgard/ork-iam": "^2.1",
+        "amtgard/ork-iam-orn-definitions": "^2.0",
         "league/oauth2-client": "^2.7",
         "nyholm/psr7": "^1.8",
         "psr/http-client": "^1.0",
@@ -45,7 +45,7 @@
             "@php -r \"sleep(3);\"",
             "SLIM_INTEGRATION=1 phpunit --testsuite Integration --filter SlimDocker"
         ],
-        "stan": "phpstan analyse src tests",
+        "stan": "phpstan analyse src tests --memory-limit=512M",
         "cs": "phpcs"
     },
     "config": {

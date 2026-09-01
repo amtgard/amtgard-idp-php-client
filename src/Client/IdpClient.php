@@ -57,7 +57,7 @@ final class IdpClient
             ? $requests
             : new \Nyholm\Psr7\Factory\Psr17Factory();
         $this->tokenClient = new IdpTokenClient($environment, $http, $requests, $streams);
-        $this->resourceClient = new Psr18IdpHttpClient($environment, $http, $requests, $streams);
+        $this->resourceClient = new Psr18IdpHttpClient($environment, $http, $requests);
         $this->authorizationEvaluator = new AuthorizationEvaluator();
         $this->ornParser = new OrnParser();
     }

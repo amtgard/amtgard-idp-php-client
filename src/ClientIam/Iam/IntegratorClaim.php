@@ -9,10 +9,10 @@ use Amtgard\IAM\Resource;
 
 final class IntegratorClaim extends Claim
 {
-    protected function serviceFormat(): array
+    public function ornSegmentSchema(): array
     {
         return IntegratorFormatRegistry::get(
-            IntegratorFormatRegistry::currentService() ?? $this->getServiceIdentifier()->name,
+            IntegratorFormatRegistry::currentService() ?? $this->getPrefix()->name,
         );
     }
 

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\Iam;
 
+use Amtgard\IAM\Catalog\ServiceCatalog;
 use Amtgard\IAM\ORN\OrnClassMap;
-use Amtgard\IAM\OrkServices;
 use Amtgard\IdpClient\Iam\Orn\IdpClaim;
 use Amtgard\IdpClient\Iam\Orn\IdpRequirement;
 
@@ -24,12 +24,12 @@ final class OrnBootstrap
             return;
         }
 
-        if (!OrnClassMap::isRegistered(OrkServices::Idp)) {
-            OrnClassMap::registerClaim(OrkServices::Idp, IdpClaim::class);
+        if (!OrnClassMap::isRegistered(ServiceCatalog::Idp)) {
+            OrnClassMap::registerClaim(ServiceCatalog::Idp, IdpClaim::class);
         }
 
-        if (!OrnClassMap::isRegistered(OrkServices::Idp, asRequirement: true)) {
-            OrnClassMap::registerRequirement(OrkServices::Idp, IdpRequirement::class);
+        if (!OrnClassMap::isRegistered(ServiceCatalog::Idp, asRequirement: true)) {
+            OrnClassMap::registerRequirement(ServiceCatalog::Idp, IdpRequirement::class);
         }
 
         self::$registered = true;

@@ -8,12 +8,13 @@ use Amtgard\IAM\Allowance\Claim;
 
 final class IdpClaim extends Claim
 {
-    protected function serviceFormat(): array
+    public function ornSegmentSchema(): array
     {
-        return IdpFormat::serviceFormat();
+        return IdpFormat::ornSegmentSchema();
     }
 
-    protected function getResourceMap(string $resource = null): array
+    /** @return array<string, list<string>>|list<string> */
+    protected function getResourceMap(?string $resource = null): array
     {
         return IdpFormat::getValidResourceMap($resource);
     }

@@ -105,7 +105,7 @@ final class Psr18ClientIamHttpClient
     }
 
     /**
-     * @param array<string, mixed>|string $metadata
+     * @param array<int|string, mixed>|string $metadata
      */
     public function putUserMetadata(
         string $idpUserId,

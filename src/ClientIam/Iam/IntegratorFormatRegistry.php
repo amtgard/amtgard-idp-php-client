@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Amtgard\IdpClient\ClientIam\Iam;
 
-use Amtgard\IAM\OrkServices;
+use Amtgard\IAM\Catalog\ServiceCatalog;
 
 final class IntegratorFormatRegistry
 {
-    /** @var array<string, list<OrkServices|string>> */
+    /** @var array<string, list<ServiceCatalog|string>> */
     private static array $formats = [];
 
     private static ?string $currentService = null;
 
     /**
-     * @param list<OrkServices|string> $format
+     * @param list<ServiceCatalog|string> $format
      */
     public static function register(string $service, array $format): void
     {
@@ -23,7 +23,7 @@ final class IntegratorFormatRegistry
     }
 
     /**
-     * @return list<OrkServices|string>
+     * @return list<ServiceCatalog|string>
      */
     public static function get(string $service): array
     {
