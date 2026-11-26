@@ -11,6 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Authorization JWTs are treated as opaque strings; the library works with IDP-issued ES256
   (and RS256) tokens — no client change is needed for the IDP’s ES256 signing migration.
   Adds ES256/RS256 passthrough unit tests and a discovery-gated ES256 integration test.
+- Fixes an incorrect assertion in the integration suite: a compact JWS has exactly
+  2 dots, not 3.
 
 ## [2.0.0] - 2026-09-01
 
