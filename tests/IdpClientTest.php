@@ -109,7 +109,7 @@ final class IdpClientTest extends TestCase
         $tokenJson = Fixtures::read('token_response.json');
         $client = $this->createClient([
             new GuzzleResponse(200, ['Content-Type' => 'application/json'], $tokenJson),
-            new GuzzleResponse(200, ['Content-Type' => 'application/json'], Fixtures::read('jwt.json')),
+            new GuzzleResponse(200, ['Content-Type' => 'application/json'], json_encode(['jwt' => trim(Fixtures::read('es256-authorization-jwt.txt'))], JSON_THROW_ON_ERROR)),
             new GuzzleResponse(200, ['Content-Type' => 'application/json'], Fixtures::read('userinfo_without_ork.json')),
         ]);
 

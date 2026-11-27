@@ -229,7 +229,7 @@ final class IdpClient
      *
      * Prefer {@see fetchUserProfile()} with the OAuth access token in application code.
      *
-     * @param string $authorizationJwt RS256 authorization JWT from {@see fetchJwt()} or {@see UserProfile::$jwt}
+     * @param string $authorizationJwt authorization JWT from {@see fetchJwt()} or {@see UserProfile::$jwt}
      */
     public function fetchUserProfileWithAuthorizationJwt(
         string $authorizationJwt,
@@ -244,7 +244,7 @@ final class IdpClient
      * Prefer {@see validate()} with the OAuth access token. Requires IDP session cookies from
      * prior resource calls (see {@see IdpHttpCookies}).
      *
-     * @param string $authorizationJwt RS256 authorization JWT from {@see fetchJwt()} or {@see UserProfile::$jwt}
+     * @param string $authorizationJwt authorization JWT from {@see fetchJwt()} or {@see UserProfile::$jwt}
      */
     public function validateWithAuthorizationJwt(
         string $authorizationJwt,

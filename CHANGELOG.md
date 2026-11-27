@@ -4,9 +4,15 @@ All notable changes to `amtgard/idp-php-client` are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project aligns major releases with the **ork-iam 2.x** dependency line where applicable.
 
-## Unreleased
+## [2.1.0] - 2026-11-26
 
-_No changes yet._
+### Compatibility
+
+- Authorization JWTs are treated as opaque strings; the library works with IDP-issued ES256
+  (and RS256) tokens — no client change is needed for the IDP’s ES256 signing migration.
+  Adds ES256/RS256 passthrough unit tests and a discovery-gated ES256 integration test.
+- Fixes an incorrect assertion in the integration suite: a compact JWS has exactly
+  2 dots, not 3.
 
 ## [2.0.0] - 2026-09-01
 

@@ -154,7 +154,34 @@ final class IdpIntegrationTest extends TestCase
         $jwt = $client->fetchJwt($accessToken);
 
         $this->assertNotSame('', $jwt);
-        $this->assertSame(3, substr_count($jwt, '.'), 'IDP authorization JWT should be a compact JWS');
+        $this->assertSame(2, substr_count($jwt, '.'), 'IDP authorization JWT should be a compact JWS');
+    }
+
+    /**
+     * Discovery-gated ES256 round-trip. Skips while the live IDP is RS256-only
+     * (no EC key published), so the test is green before cutover and doubles
+     * as a cutover detector once ES256 is advertised.
+     */
+    public function testFetchJwtReturnsEs256AuthorizationJwtWhenIdpAdvertisesEs256(): void
+    {
+        $client = $this->createClient();
+
+        if (!$this->idpAdvertisesEs256()) {
+            $this->markTestSkipped('IDP does not advertise ES256 (no EC key in JWKS, no ES256 in discovery document).');
+        }
+
+        $accessToken = $this->requireAccessToken();
+
+        $jwt = $client->fetchJwt($accessToken);
+
+        $this->assertNotSame('', $jwt);
+        $this->assertSame(2, substr_count($jwt, '.'), 'IDP authorization JWT should be a compact JWS');
+        $this->assertSame('ES256', self::decodeJwtHeaderAlg($jwt));
+
+        $profile = $client->fetchUserProfile($accessToken);
+
+        $this->assertNotSame('', $profile->jwt);
+        $this->assertSame(2, substr_count($profile->jwt, '.'), 'Profile JWT should be a compact JWS');
     }
 
     public function testCheckAuthorizationWithEmptyPolicy(): void
@@ -246,5 +273,86 @@ final class IdpIntegrationTest extends TestCase
         }
 
         return $accessToken;
+    }
+
+    /**
+     * True when the live IDP advertises ES256 signing. The JWKS signal is
+     * preferred: an EC key in the published key set proves an EC key is
+     * actually published. Falls back to the discovery document's
+     * id_token_signing_alg_values_supported list. An unparseable probe
+     * response (non-200, non-JSON — e.g. a bot-challenge page) is treated
+     * as "not advertising ES256", so the test skips instead of failing.
+     */
+    private function idpAdvertisesEs256(): bool
+    {
+        $http = new GuzzleClient(['http_errors' => false, 'timeout' => 10]);
+
+        $jwks = $this->fetchJsonDocument($http, $this->environment->idpBaseUrl() . '/.well-known/jwks.json');
+        if (is_array($jwks)) {
+            $keys = $jwks['keys'] ?? null;
+            if (is_array($keys)) {
+                foreach ($keys as $key) {
+                    if (is_array($key) && ($key['kty'] ?? null) === 'EC') {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        $discovery = $this->fetchJsonDocument($http, $this->environment->idpBaseUrl() . '/.well-known/openid-configuration');
+        if (is_array($discovery)) {
+            $algs = $discovery['id_token_signing_alg_values_supported'] ?? null;
+            if (is_array($algs)) {
+                foreach ($algs as $alg) {
+                    if ($alg === 'ES256') {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array<mixed>|null Decoded JSON document, or null when the
+     *                           response is not a 200 JSON document.
+     */
+    private function fetchJsonDocument(GuzzleClient $http, string $url): ?array
+    {
+        try {
+            $response = $http->get($url);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if ($response->getStatusCode() !== 200) {
+            return null;
+        }
+
+        try {
+            $decoded = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return null;
+        }
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * Decode part 0 (the JOSE header) of a compact JWS and return its alg.
+     * Test-side parsing only; the library never parses tokens.
+     */
+    private static function decodeJwtHeaderAlg(string $jwt): string
+    {
+        $segments = explode('.', $jwt);
+        $decoded = base64_decode(strtr($segments[0], '-_', '+/'), true);
+        $header = json_decode($decoded === false ? '' : $decoded, true);
+
+        if (!is_array($header) || !isset($header['alg']) || !is_string($header['alg'])) {
+            throw new \RuntimeException('JWT header has no string alg.');
+        }
+
+        return $header['alg'];
     }
 }
